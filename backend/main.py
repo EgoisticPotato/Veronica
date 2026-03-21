@@ -65,7 +65,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"]         = "1; mode=block"
         response.headers["Referrer-Policy"]          = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"]       = "camera=(), microphone=(), geolocation=()"
-        # HSTS — only send over HTTPS (Cloud Run enforces HTTPS automatically)
+        # HSTS — only send over HTTPS (your reverse proxy / Docker host must handle TLS)
         if not settings.DEBUG:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         # Remove server fingerprinting headers
@@ -85,11 +85,13 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # 4. Trusted host validation in production
-if not settings.DEBUG:
-    allowed = ["localhost", "127.0.0.1", "*.run.app", "*.vercel.app"]
-    if settings.ALLOWED_HOST:
-        allowed.append(settings.ALLOWED_HOST)
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed)
+# Set ALLOWED_HOST=yourdomain.com in .env, or leave blank to allow all hosts
+if not settings.DEBUG and settings.ALLOWED_HOST:
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["localhost", "127.0.0.1", settings.ALLOWED_HOST,
+                       f"*.{settings.ALLOWED_HOST}"],
+    )
 
 # 5. CORS — strict origins only
 app.add_middleware(

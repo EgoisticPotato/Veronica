@@ -26,13 +26,15 @@ class Settings(BaseSettings):
 
     # ── CORS ───────────────────────────────────────────────────────────────────
     # Production: set to your Vercel URL e.g. ["https://veronica-xyz.vercel.app"]
-    CORS_ORIGINS: List[str] = ["http://127.0.0.1:3000", "http://localhost:3000"]
+    CORS_ORIGINS: List[str] = ["http://127.0.0.1:3000", "http://localhost:3000",
+                              "https://veronica-drab.vercel.app"]
 
     # ── Spotify ────────────────────────────────────────────────────────────────
     SPOTIFY_CLIENT_ID:     str = ""
     SPOTIFY_CLIENT_SECRET: str = ""
     # Local:      http://127.0.0.1:3000/api/v1/auth/callback
-    # Production: https://YOUR_VERCEL_APP.vercel.app/api/v1/auth/callback
+    # Local dev:  http://127.0.0.1:3000/api/v1/auth/callback
+    # Production:  https://veronica-drab.vercel.app/api/v1/auth/callback
     SPOTIFY_REDIRECT_URI:  str = "http://127.0.0.1:3000/api/v1/auth/callback"
 
     # ── LLM — Gemini (cloud, free 1500 req/day) ────────────────────────────────

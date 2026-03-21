@@ -1,7 +1,5 @@
-# ── Veronica Backend — Cloud Production Dependencies ──────────────────────────
-# Python 3.11 (matches Dockerfile base image)
-# All packages here run in Cloud Run.
-# Local-only packages (pyttsx3, faster-whisper) are in requirements-local.txt
+# Veronica Backend — Docker Production Dependencies
+# Python 3.11
 
 # ── Web Framework ──────────────────────────────────────────────────────────────
 fastapi==0.115.5
@@ -13,10 +11,7 @@ pydantic==2.10.3
 pydantic-settings==2.6.1
 httpx==0.28.1
 
-# ── TTS — cloud (ElevenLabs) ───────────────────────────────────────────────────
-elevenlabs==1.9.0
-
-# ── Web search ─────────────────────────────────────────────────────────────────
+# ── Web Search ─────────────────────────────────────────────────────────────────
 tavily-python==0.5.0
 
 # ── RAG ────────────────────────────────────────────────────────────────────────
@@ -29,16 +24,14 @@ beautifulsoup4==4.12.3
 
 # ── PDF processing ─────────────────────────────────────────────────────────────
 pdfplumber==0.11.4
-pymupdf==1.24.11       # fitz — PDF image extraction (works on linux/amd64)
+pymupdf==1.24.11
 Pillow==10.4.0
 
-# ── DOCX assembly ──────────────────────────────────────────────────────────────
+# ── DOCX processing ────────────────────────────────────────────────────────────
 python-docx==1.1.2
-
-# ── DOCX→PDF (Linux fallback via reportlab — LibreOffice optional) ─────────────
 reportlab==4.2.2
 
-# ── PDF OCR (scanned pages — needs tesseract-ocr system package in Dockerfile) ──
+# ── OCR (scanned PDF pages) ────────────────────────────────────────────────────
 pdf2image==1.17.0
 pytesseract==0.3.13
 

@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/v1/:path*",
-      "destination": "https://YOUR_CLOUD_RUN_URL/api/v1/:path*"
+      "destination": "https://YOUR_DOCKER_BACKEND_URL/api/v1/:path*"
     }
   ],
   "headers": [

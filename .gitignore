@@ -5,6 +5,9 @@ __pycache__/
 venv/
 .env
 *.egg-info/
+DOCKER_DEPLOY.md
+TECHNICAL_SUMMARY.md
+CLAUDE.md
 
 # Node
 node_modules/
