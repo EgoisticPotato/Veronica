@@ -1,0 +1,463 @@
+/* ── Root ───────────────────────────────────────────────────────────────────── */
+.veronica-root {
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+}
+
+/* ── Left panel ─────────────────────────────────────────────────────────────── */
+.veronica-left {
+  position: relative;
+  flex: 1 1 100%;
+  height: 100%;
+  overflow: hidden;
+  transition: flex 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.veronica-root.split-active .veronica-left {
+  flex: 0 0 55%;
+}
+
+/*
+ * Canvas — MUST have position:absolute + inset:0 so it fills the div.
+ * Do NOT set width/height in CSS — only the JS attributes matter for the
+ * drawing buffer. CSS width/height just scales visually without affecting
+ * canvas.width / canvas.height which the particle engine reads.
+ * The particle engine's ResizeObserver sets the attributes directly.
+ */
+.particle-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Mic button — absolute centre of left panel */
+.mic-btn {
+  position: absolute;
+  top:  50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.mic-btn:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mic-btn.mic-active {
+  border-color: rgba(255, 255, 255, 0.8);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 28px rgba(255, 255, 255, 0.14);
+}
+
+.mic-btn.mic-processing {
+  cursor: default;
+  animation: pulse-btn 1.2s ease-in-out infinite;
+}
+
+.mic-btn:disabled { opacity: 0.55; }
+
+@keyframes pulse-btn {
+  0%, 100% { box-shadow: 0 0 0 rgba(255,255,255,0); }
+  50%       { box-shadow: 0 0 22px rgba(255,255,255,0.12); }
+}
+
+/* ── HUD — pinned to bottom of left panel ───────────────────────────────────── */
+.veronica-hud {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0 2rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 5;
+  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
+  pointer-events: none; /* let clicks pass through to canvas / mic button */
+}
+
+.veronica-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.state-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.22);
+  transition: background 0.4s;
+  flex-shrink: 0;
+}
+
+.state-dot.state-listening { background: rgba(255,255,255,0.9); animation: blink 0.8s ease-in-out infinite; }
+.state-dot.state-speaking  { background: rgba(255,255,255,0.7); animation: blink 0.4s ease-in-out infinite; }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+.status-text {
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+}
+
+.conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.conv-row       { display: flex; flex-direction: column; gap: 3px; }
+.conv-label     { font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; }
+.conv-user      .conv-label { color: rgba(255,255,255,0.2); }
+.conv-veronica  .conv-label { color: rgba(255,255,255,0.4); }
+.conv-text      { font-size: 12px; line-height: 1.6; color: rgba(255,255,255,0.65); }
+.conv-veronica  .conv-text  { color: rgba(255,255,255,0.85); }
+
+.keyboard-hint {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.1);
+  text-transform: uppercase;
+}
+
+.device-hint {
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: rgba(255,255,255,0.1);
+}
+
+/* ── Right panel ─────────────────────────────────────────────────────────────── */
+.veronica-right {
+  flex: 0 0 0%;
+  width: 0;
+  height: 100%;
+  background: #060606;
+  overflow: hidden;
+  transition: flex 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  /* Vertically centre the player content */
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.veronica-right.panel-visible {
+  flex: 0 0 45%;
+}
+
+.panel-divider {
+  position: absolute;
+  top: 8%;
+  bottom: 8%;
+  left: 0;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(255,255,255,0.06) 20%,
+    rgba(255,255,255,0.06) 80%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.sp-err-banner {
+  position: absolute;
+  top: 1rem;
+  font-size: 10px;
+  color: rgba(255, 80, 80, 0.7);
+  letter-spacing: 0.1em;
+  text-align: center;
+  padding: 0 1rem;
+}
+
+.mic-error {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: rgba(255, 80, 80, 0.6);
+  letter-spacing: 0.1em;
+  z-index: 100;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────────── */
+@media (max-width: 680px) {
+  .veronica-root { flex-direction: column; }
+  .veronica-root.split-active .veronica-left { flex: 0 0 50vh; }
+  .veronica-right.panel-visible { flex: 1 1 auto; width: 100%; }
+  .panel-divider { top: 0; left: 8%; right: 8%; bottom: auto; width: auto; height: 1px; }
+}
+
+/* ── Text input ─────────────────────────────────────────────────────────────── */
+.text-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+  pointer-events: all; /* override HUD's pointer-events:none */
+}
+
+.text-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  padding: 8px 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.04em;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+  caret-color: rgba(255, 255, 255, 0.6);
+}
+
+.text-input::placeholder {
+  color: rgba(255, 255, 255, 0.18);
+  letter-spacing: 0.1em;
+}
+
+.text-input:focus {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.text-input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.text-send-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background: transparent;
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  pointer-events: all;
+}
+
+.text-send-btn:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.text-send-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Document panel trigger button ──────────────────────────────────────────── */
+.doc-trigger-btn {
+  pointer-events: all;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 3px;
+  color: rgba(255,255,255,0.25);
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.doc-trigger-btn:hover {
+  border-color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.6);
+}
+
+.doc-trigger-btn.doc-trigger-active {
+  border-color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.65);
+  background: rgba(255,255,255,0.04);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────────── */
+.veronica-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  pointer-events: all;
+  margin-top: 4px;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 3px;
+  border: 0.5px solid rgba(255,255,255,0.12);
+  background: transparent;
+  color: rgba(255,255,255,0.3);
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  border-color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.8);
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.toolbar-btn-active {
+  border-color: rgba(255,255,255,0.5) !important;
+  color: rgba(255,255,255,0.85) !important;
+  background: rgba(255,255,255,0.06) !important;
+}
+
+/* ── Memory overlay ──────────────────────────────────────────────────────────── */
+.overlay-panel {
+  width: 100%;
+  max-width: 480px;
+  background: rgba(0,0,0,0.7);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  padding: 14px;
+  pointer-events: all;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+
+.overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.overlay-title {
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+}
+
+.overlay-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.overlay-action-btn {
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.25);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.overlay-action-btn:hover { color: rgba(255,255,255,0.6); }
+
+.overlay-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.3);
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+.overlay-close:hover { color: rgba(255,255,255,0.8); }
+
+.overlay-empty {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: rgba(255,255,255,0.2);
+  text-align: center;
+  margin: 10px 0;
+}
+
+.overlay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.overlay-item {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.overlay-item-cat {
+  font-family: 'Courier New', monospace;
+  font-size: 8px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.overlay-item-text {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: rgba(255,255,255,0.65);
+}

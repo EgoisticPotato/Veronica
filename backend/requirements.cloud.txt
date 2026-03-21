@@ -1,0 +1,48 @@
+# Veronica Backend — Cloud Dependencies (Google Cloud Run / Docker)
+#
+# Differences from requirements.txt (local):
+#   - NO pyttsx3    (needs Windows SAPI / audio device — not available in containers)
+#   - NO faster-whisper (model is 1.5 GB, slow cold start — use STT_PROVIDER=openai)
+#   - NO docx2pdf   (needs MS Word or LibreOffice — too heavy for a lean container)
+#   - YES openai    (Whisper API for cloud STT)
+#   - LibreOffice for DOCX→PDF is installed at system level in Dockerfile if needed
+
+# ── Web Framework ──────────────────────────────────────────────────────────────
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.17
+
+# ── Settings & HTTP ────────────────────────────────────────────────────────────
+pydantic==2.10.3
+pydantic-settings==2.6.1
+httpx==0.28.1
+
+# ── STT (cloud) ────────────────────────────────────────────────────────────────
+openai==1.58.1              # Whisper API — set STT_PROVIDER=openai
+
+# ── TTS (cloud) ────────────────────────────────────────────────────────────────
+elevenlabs==1.9.0           # Set TTS_PROVIDER=elevenlabs
+
+# ── Web search ─────────────────────────────────────────────────────────────────
+tavily-python==0.5.0
+
+# ── RAG ────────────────────────────────────────────────────────────────────────
+pypdf==4.3.1
+pymupdf==1.24.11            # PDF image extraction (fitz)
+sentence-transformers==3.3.1
+numpy==2.1.3
+qdrant-client==1.12.1
+aiohttp==3.11.11
+beautifulsoup4==4.12.3
+
+# ── File conversion ────────────────────────────────────────────────────────────
+pdfplumber==0.11.4
+python-docx==1.1.2
+pdf2image==1.17.0
+Pillow==10.4.0
+pytesseract==0.3.13
+reportlab==4.2.2
+# docx2pdf omitted — requires MS Word. LibreOffice is used on Linux via subprocess.
+
+# ── Utilities ──────────────────────────────────────────────────────────────────
+python-dotenv==1.0.1
