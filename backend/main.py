@@ -42,9 +42,12 @@ app = FastAPI(
 
 # Only allow requests from expected hosts in production
 if not settings.DEBUG:
+    _hosts = ["localhost", "127.0.0.1", "*.vercel.app"]
+    if settings.ALLOWED_HOST:
+        _hosts.append(settings.ALLOWED_HOST)
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["localhost", "127.0.0.1", "*.yourdomain.com"],
+        allowed_hosts=_hosts,
     )
 
 # CORS — restrict to registered origins only
@@ -84,10 +87,11 @@ if os.path.exists(_build_dir):
 
 if __name__ == "__main__":
     import uvicorn
+    _port = int(os.environ.get("PORT", 5000))
     uvicorn.run(
         "main:app",
-        host="127.0.0.1",
-        port=5000,
+        host="0.0.0.0",
+        port=_port,
         reload=settings.DEBUG,
         log_level="info",
     )

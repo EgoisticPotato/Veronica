@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────────────────────────
+# Veronica — Docker Compose
+# Usage:
+#   docker compose up --build        (first time / rebuild)
+#   docker compose up -d             (detached)
+#   docker compose logs -f           (tail logs)
+#   docker compose down              (stop)
+# ─────────────────────────────────────────────────────────────────
+
+services:
+  veronica-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: veronica-api
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    env_file:
+      - .env
+    environment:
+      - PORT=${PORT:-8000}
+    volumes:
+      - veronica-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-8000}/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  veronica-data:
+    driver: local

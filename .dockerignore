@@ -1,0 +1,38 @@
+# ── Git / IDE ────────────────────────────────────────────────────
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+
+# ── Frontend (not needed in backend image) ───────────────────────
+frontend/
+*.md
+
+# ── Python artifacts ─────────────────────────────────────────────
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+
+# ── Docker ───────────────────────────────────────────────────────
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# ── Environment & secrets ────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Old Dockerfiles ──────────────────────────────────────────────
+backend/Dockerfile.prod
+backend/Dockerfile.final
+
+# ── Project references ───────────────────────────────────────────
+Mark-XXX-main/
+
+# ── Misc ─────────────────────────────────────────────────────────
+*.log
+node_modules/

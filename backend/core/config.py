@@ -26,7 +26,12 @@ class Settings(BaseSettings):
     # ── CORS ───────────────────────────────────────────────────────────────
     # In production set this to your Vercel frontend URL, e.g.:
     #   CORS_ORIGINS=["https://veronica.vercel.app"]
-    CORS_ORIGINS: List[str] = ["http://127.0.0.1:3000", "http://localhost:3000"]
+    CORS_ORIGINS: List[str] = [
+        "https://veronica-drab.vercel.app",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+        "http://localhost:3001",
+    ]
 
     # ── Spotify ────────────────────────────────────────────────────────────
     SPOTIFY_CLIENT_ID:     str = ""
