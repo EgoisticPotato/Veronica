@@ -43,7 +43,7 @@ class Settings(BaseSettings):
 
     # ── LLM — Ollama (local) ───────────────────────────────────────────────
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL:    str = "llama3.2"
+    OLLAMA_MODEL:    str = "gemini-2.0-flash" # Use gemini-2.0-flash via OpenRouter by default
 
     # ── Vision — OpenRouter GPT-4o (cloud, screenshot analysis only) ───────
     GEMINI_API_KEY:          str = ""
@@ -51,17 +51,15 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY:      str = ""
     OPENROUTER_VISION_MODEL: str = "openai/gpt-4o"
 
-    # ── STT provider ───────────────────────────────────────────────────────
     # "openai"  → OpenAI Whisper API (fast, cloud, no ffmpeg needed in container)
     # "local"   → faster-whisper on CPU (offline, needs ffmpeg + model download)
-    STT_PROVIDER:  str = "local"
+    STT_PROVIDER:  str = "openai"
     OPENAI_API_KEY: str = ""
     WHISPER_MODEL:  str = "base"    # used only when STT_PROVIDER=local
 
-    # ── TTS provider ───────────────────────────────────────────────────────
     # "elevenlabs" → ElevenLabs API (cloud, best quality)
     # "local"      → pyttsx3 with female voice selection (offline, Windows only)
-    TTS_PROVIDER:         str = "local"
+    TTS_PROVIDER:         str = "elevenlabs"
     TTS_RATE:             int = 175
     TTS_VOLUME:           float = 0.9
     ELEVENLABS_API_KEY:   str = ""

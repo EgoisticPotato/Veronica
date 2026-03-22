@@ -161,7 +161,7 @@ class MemoryService:
                 return json.loads(raw)
         return {}
 
-    def get_all_flat(self) -> list[dict]:
+    def get_all(self) -> list[dict]:
         """Convert nested dict to flat list for Veronica's frontend UI."""
         flat = []
         for cat, items in self._memory.items():
