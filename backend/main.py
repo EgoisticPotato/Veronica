@@ -41,14 +41,14 @@ app = FastAPI(
 # ── Security middleware ────────────────────────────────────────────────────────
 
 # Only allow requests from expected hosts in production
-if not settings.DEBUG:
-    _hosts = ["localhost", "127.0.0.1", "*.vercel.app"]
-    if settings.ALLOWED_HOST:
-        _hosts.append(settings.ALLOWED_HOST)
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=_hosts,
-    )
+# if not settings.DEBUG:
+#     _hosts = ["localhost", "127.0.0.1", "*.vercel.app"]
+#     if settings.ALLOWED_HOST:
+#         _hosts.append(settings.ALLOWED_HOST)
+#     app.add_middleware(
+#         TrustedHostMiddleware,
+#         allowed_hosts=_hosts,
+#     )
 
 # CORS — restrict to registered origins only
 app.add_middleware(
