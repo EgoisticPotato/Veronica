@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     #   CORS_ORIGINS=["https://veronica.vercel.app"]
     CORS_ORIGINS: List[str] = [
         "https://veronica-drab.vercel.app",
+        "https://veronica-latest-backend.onrender.com",
         "http://127.0.0.1:3000",
         "http://localhost:3000",
         "http://localhost:3001",
@@ -37,7 +38,8 @@ class Settings(BaseSettings):
     SPOTIFY_CLIENT_ID:     str = ""
     SPOTIFY_CLIENT_SECRET: str = ""
     # In production, set to your Vercel frontend URL + /api/v1/auth/callback
-    SPOTIFY_REDIRECT_URI:  str = "http://127.0.0.1:3000/api/v1/auth/callback"
+    # OR your backend URL if you want the redirect to hit the backend directly (safer for cookies)
+    SPOTIFY_REDIRECT_URI:  str = "https://veronica-latest-backend.onrender.com/api/v1/auth/callback"
 
     # ── LLM — Ollama (local) ───────────────────────────────────────────────
     OLLAMA_BASE_URL: str = "http://localhost:11434"
