@@ -8,7 +8,9 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("App: Checking for token...");
     spotifyService.getToken().then((t) => {
+      console.log("App: Token received:", t ? "YES" : "NO");
       setToken(t);
       setLoading(false);
     });
