@@ -1,6 +1,6 @@
 """
 Veronica — AI Voice Assistant
-FastAPI application entry point — production-hardened
+FastAPI application entry point
 """
 
 import os
@@ -10,13 +10,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 
 from api.routes import router as api_router
 from core.config import settings
-from core.logging_config import setup_logging, RequestLoggingMiddleware
+from core.logging_config import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -24,19 +23,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Veronica starting — debug=%s stt=%s tts=%s",
-                settings.DEBUG, settings.STT_PROVIDER, settings.TTS_PROVIDER)
-    # Validate critical secrets are set in production
-    if not settings.DEBUG:
-        missing = []
-        if not settings.SPOTIFY_CLIENT_ID:     missing.append("SPOTIFY_CLIENT_ID")
-        if not settings.SPOTIFY_CLIENT_SECRET:  missing.append("SPOTIFY_CLIENT_SECRET")
-        if settings.STT_PROVIDER == "openai" and not settings.OPENAI_API_KEY:
-            missing.append("OPENAI_API_KEY")
-        if settings.TTS_PROVIDER == "elevenlabs" and not settings.ELEVENLABS_API_KEY:
-            missing.append("ELEVENLABS_API_KEY")
-        if missing:
-            logger.warning("PRODUCTION WARNING: missing secrets: %s", missing)
+    logger.info("Veronica starting — debug=%s", settings.DEBUG)
     yield
     logger.info("Veronica shutting down")
 
@@ -45,69 +32,34 @@ app = FastAPI(
     title="Veronica AI Assistant",
     version="1.0.0",
     lifespan=lifespan,
-    # Never expose API docs, schemas, or OpenAPI JSON in production
-    docs_url    ="/api/docs"        if settings.DEBUG else None,
-    redoc_url   =None,
-    openapi_url ="/api/openapi.json" if settings.DEBUG else None,
+    # Hide internal details from error responses in production
+    docs_url="/api/docs" if settings.DEBUG else None,
+    redoc_url=None,
+    openapi_url="/api/openapi.json" if settings.DEBUG else None,
 )
 
+# ── Security middleware ────────────────────────────────────────────────────────
 
-# ── Security headers middleware ────────────────────────────────────────────────
-
-from starlette.middleware.base import BaseHTTPMiddleware
-
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Add security headers to every response."""
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        response.headers["X-Content-Type-Options"]  = "nosniff"
-        response.headers["X-Frame-Options"]          = "DENY"
-        response.headers["X-XSS-Protection"]         = "1; mode=block"
-        response.headers["Referrer-Policy"]          = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"]       = "camera=(), microphone=(), geolocation=()"
-        # HSTS — only send over HTTPS (your reverse proxy / Docker host must handle TLS)
-        if not settings.DEBUG:
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        # Remove server fingerprinting headers
-        response.headers.pop("server", None)
-        return response
-
-
-# ── Middleware stack (order matters — outermost runs first) ───────────────────
-
-# 1. Request logging — outermost so every request is logged including rejected ones
-app.add_middleware(RequestLoggingMiddleware)
-
-# 2. Security headers — applied to all responses
-app.add_middleware(SecurityHeadersMiddleware)
-
-# 3. GZip compression for responses > 1KB
-app.add_middleware(GZipMiddleware, minimum_size=1024)
-
-# 4. Trusted host validation in production
-# Set ALLOWED_HOST=yourdomain.com in .env, or leave blank to allow all hosts
-if not settings.DEBUG and settings.ALLOWED_HOST:
+# Only allow requests from expected hosts in production
+if not settings.DEBUG:
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["localhost", "127.0.0.1", settings.ALLOWED_HOST,
-                       f"*.{settings.ALLOWED_HOST}"],
+        allowed_hosts=["localhost", "127.0.0.1", "*.yourdomain.com"],
     )
 
-# 5. CORS — strict origins only
+# CORS — restrict to registered origins only
 app.add_middleware(
     CORSMiddleware,
-    allow_origins     =settings.CORS_ORIGINS,
-    allow_credentials =True,
-    allow_methods     =["GET", "POST", "DELETE"],
-    allow_headers     =["Content-Type", "Authorization"],
-    expose_headers    =["Content-Disposition"],
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["X-Transcript", "X-Response"],
 )
-
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
 app.include_router(api_router, prefix="/api/v1")
-
 
 # ── Production static file serving ────────────────────────────────────────────
 
@@ -122,6 +74,7 @@ if os.path.exists(_build_dir):
 
     @app.get("/{full_path:path}")
     async def serve_react(full_path: str):
+        # Don't intercept API routes (safety net)
         if full_path.startswith("api/"):
             return JSONResponse({"detail": "Not found"}, status_code=404)
         return FileResponse(os.path.join(_build_dir, "index.html"))
@@ -131,12 +84,10 @@ if os.path.exists(_build_dir):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 5000))
-    host = "0.0.0.0" if os.environ.get("PORT") else "127.0.0.1"
     uvicorn.run(
         "main:app",
-        host=host,
-        port=port,
+        host="127.0.0.1",
+        port=5000,
         reload=settings.DEBUG,
         log_level="info",
     )

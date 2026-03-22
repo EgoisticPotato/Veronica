@@ -20,24 +20,24 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 const SPOTIFY_API = 'https://api.spotify.com/v1/me/player';
 
 export function useSpotifyPlayer(token) {
-  const [deviceId,     setDeviceId]     = useState(null);
-  const [isReady,      setIsReady]      = useState(false);
-  const [isActive,     setIsActive]     = useState(false);
-  const [isPaused,     setIsPaused]     = useState(true);
+  const [deviceId, setDeviceId] = useState(null);
+  const [isReady, setIsReady] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+  const [isPaused, setIsPaused] = useState(true);
   const [currentTrack, setCurrentTrack] = useState(null);
-  const [position,     setPosition]     = useState(0);
-  const [duration,     setDuration]     = useState(0);
-  const [volume,       setVolumeState]  = useState(0.5);
-  const [error,        setError]        = useState(null);
-  const [queue,        setQueue]        = useState([]);
+  const [position, setPosition] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolumeState] = useState(0.5);
+  const [error, setError] = useState(null);
+  const [queue, setQueue] = useState([]);
   // localQueue is the drag-reordered view; null means use the real Spotify queue
-  const [localQueue,   setLocalQueue]   = useState(null);
+  const [localQueue, setLocalQueue] = useState(null);
 
-  const playerRef  = useRef(null);
-  const tokenRef   = useRef(token);   // always-current token for API calls
-  const tickRef    = useRef(null);
-  const pausedRef  = useRef(true);
-  const deviceRef  = useRef(null);    // always-current deviceId for API calls
+  const playerRef = useRef(null);
+  const tokenRef = useRef(token);   // always-current token for API calls
+  const tickRef = useRef(null);
+  const pausedRef = useRef(true);
+  const deviceRef = useRef(null);    // always-current deviceId for API calls
 
   // Keep refs in sync so callbacks always have current values
   useEffect(() => { tokenRef.current = token; }, [token]);
@@ -93,7 +93,7 @@ export function useSpotifyPlayer(token) {
     );
     const script = existingScript || document.createElement('script');
     if (!existingScript) {
-      script.src   = 'https://sdk.scdn.co/spotify-player.js';
+      script.src = 'https://sdk.scdn.co/spotify-player.js';
       script.async = true;
       document.body.appendChild(script);
     }
@@ -103,9 +103,9 @@ export function useSpotifyPlayer(token) {
       if (playerRef.current) return;
 
       const player = new window.Spotify.Player({
-        name:               'Veronica — AI Assistant',
-        getOAuthToken:      (cb) => cb(tokenRef.current),
-        volume:             0.5,
+        name: 'Veronica — AI Assistant',
+        getOAuthToken: (cb) => cb(tokenRef.current),
+        volume: 0.5,
         enableMediaSession: true,
       });
 
@@ -113,8 +113,8 @@ export function useSpotifyPlayer(token) {
 
       player.on('initialization_error', ({ message }) => setError(`Init: ${message}`));
       player.on('authentication_error', ({ message }) => setError(`Auth: ${message}`));
-      player.on('account_error',        ({ message }) => setError(`Spotify Premium required`));
-      player.on('playback_error',       ({ message }) => console.warn('Playback:', message));
+      player.on('account_error', ({ message }) => setError(`Spotify Premium required`));
+      player.on('playback_error', ({ message }) => console.warn('Playback:', message));
 
       player.addListener('ready', ({ device_id }) => {
         setDeviceId(device_id);
@@ -124,7 +124,7 @@ export function useSpotifyPlayer(token) {
         // Fetch actual Spotify volume so our state matches reality
         player.getVolume().then((v) => {
           if (typeof v === 'number') setVolumeState(v);
-        }).catch(() => {});
+        }).catch(() => { });
       });
 
       player.addListener('not_ready', () => setIsReady(false));
@@ -250,7 +250,7 @@ export function useSpotifyPlayer(token) {
         setQueue(data.queue || []);
         setLocalQueue(null); // clear any local drag-reorder on real refresh
       }
-    } catch (_) {}
+    } catch (_) { }
   }, []);
 
   // Accept a locally reordered queue from drag-and-drop in SpotifyPlayer

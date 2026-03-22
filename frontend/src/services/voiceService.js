@@ -41,28 +41,48 @@ class VoiceService {
     return await res.blob();
   }
 
-  /** Browser TTS using Web Speech API — zero config fallback */
+  /** Browser TTS using Web Speech API — female voice, zero config */
   speakWithBrowser(text, onDone) {
     if (!window.speechSynthesis) {
       console.warn('[TTS] window.speechSynthesis not supported');
       onDone?.();
-      return () => {};
+      return () => { };
     }
-    window.speechSynthesis.cancel(); // stop any previous speech
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate   = 1.05;
-    utt.pitch  = 1.1;
-    utt.volume = 1.0;
-    utt.lang   = 'en-US';
-    // Try to pick a female voice
+    window.speechSynthesis.cancel();
+
+    const speak = () => {
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.rate = 1.0;
+      utt.pitch = 1.1;
+      utt.volume = 1.0;
+      utt.lang = 'en-US';
+
+      // Female voice keywords — checked in priority order
+      const FEMALE_KW = /zira|samantha|victoria|karen|moira|fiona|google us english female|female|woman/i;
+      const voices = window.speechSynthesis.getVoices();
+      // Prefer en-US female, fall back to any female, then any en-US
+      const voice =
+        voices.find(v => v.lang.startsWith('en') && FEMALE_KW.test(v.name)) ||
+        voices.find(v => FEMALE_KW.test(v.name)) ||
+        voices.find(v => v.lang.startsWith('en-US')) ||
+        voices.find(v => v.lang.startsWith('en'));
+      if (voice) {
+        utt.voice = voice;
+        console.log('[TTS] Using voice:', voice.name);
+      }
+      utt.onend = () => onDone?.();
+      utt.onerror = () => onDone?.();
+      window.speechSynthesis.speak(utt);
+    };
+
+    // Voices may not be loaded yet on first call — wait for them
     const voices = window.speechSynthesis.getVoices();
-    const female = voices.find(v =>
-      /female|zira|samantha|victoria|karen|moira|fiona/i.test(v.name)
-    );
-    if (female) utt.voice = female;
-    utt.onend   = () => onDone?.();
-    utt.onerror = () => onDone?.();
-    window.speechSynthesis.speak(utt);
+    if (voices.length > 0) {
+      speak();
+    } else {
+      window.speechSynthesis.addEventListener('voiceschanged', speak, { once: true });
+    }
+
     return () => window.speechSynthesis.cancel();
   }
 
@@ -70,7 +90,7 @@ class VoiceService {
   async clearHistory() {
     try {
       await fetch('/api/v1/voice/history', { method: 'DELETE' });
-    } catch (_) {}
+    } catch (_) { }
   }
 
   async playOnSpotify(query, device_id) {
@@ -151,7 +171,7 @@ class VoiceService {
         const canvas = document.createElement("canvas");
         const MAX_W = 1280;
         const scale = bitmap.width > MAX_W ? MAX_W / bitmap.width : 1;
-        canvas.width  = Math.round(bitmap.width  * scale);
+        canvas.width = Math.round(bitmap.width * scale);
         canvas.height = Math.round(bitmap.height * scale);
         canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
         bitmap.close();
@@ -186,7 +206,7 @@ class VoiceService {
         await new Promise((r) => setTimeout(r, 300));
 
         const canvas = document.createElement("canvas");
-        canvas.width  = video.videoWidth  || 1280;
+        canvas.width = video.videoWidth || 1280;
         canvas.height = video.videoHeight || 720;
         canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
         document.body.removeChild(video);
@@ -248,12 +268,12 @@ class VoiceService {
 
     const arrayBuffer = await blob.arrayBuffer();
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-    const source      = audioCtx.createBufferSource();
-    source.buffer     = audioBuffer;
+    const source = audioCtx.createBufferSource();
+    source.buffer = audioBuffer;
 
-    const analyser  = audioCtx.createAnalyser();
+    const analyser = audioCtx.createAnalyser();
     analyser.fftSize = 256;
-    const dataArray  = new Uint8Array(analyser.frequencyBinCount);
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
@@ -280,7 +300,7 @@ class VoiceService {
       if (stopped) return;
       stopped = true;
       cancelAnimationFrame(animFrame);
-      try { source.stop(); } catch (_) {}
+      try { source.stop(); } catch (_) { }
       audioCtx.close();
       onEnd?.();
     };

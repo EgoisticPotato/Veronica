@@ -1,9 +1,0 @@
-# Don't send these to Docker build context
-.venv/
-__pycache__/
-*.pyc
-*.pyo
-.env
-data/
-.git/
-*.log

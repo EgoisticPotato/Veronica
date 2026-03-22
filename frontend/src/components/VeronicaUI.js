@@ -11,15 +11,15 @@ import './VeronicaUI.css';
 // Used to decide volume/pause behaviour BEFORE the API call returns
 function isMusicOnlyIntent(text) {
   const q = text.toLowerCase().trim().replace(/\.$/, '');
-  const STOP    = ["stop the music","stop music","stop playing","stop song","mute","silence","turn off music","stop it","stop now"];
-  const PAUSE   = ["pause the music","pause music","pause song","pause it","can you pause","please pause"];
-  const RESUME  = ["resume music","continue music","continue playing","unpause","play again","keep playing","play on","resume playing"];
-  const NEXT    = ["next song","next track","skip this","skip song","next one","play next","change song","change track"];
-  const PREV    = ["previous song","previous track","go back","last song","play previous","back to"];
-  const QUEUE   = ["to the queue","to queue","to my queue","in the queue","in queue","add to queue","queue up","queue this"];
-  const EXACT   = new Set(["stop","pause","resume","next","skip","previous","prev","back","silence","unpause","forward"]);
+  const STOP = ["stop the music", "stop music", "stop playing", "stop song", "mute", "silence", "turn off music", "stop it", "stop now"];
+  const PAUSE = ["pause the music", "pause music", "pause song", "pause it", "can you pause", "please pause"];
+  const RESUME = ["resume music", "continue music", "continue playing", "unpause", "play again", "keep playing", "play on", "resume playing"];
+  const NEXT = ["next song", "next track", "skip this", "skip song", "next one", "play next", "change song", "change track"];
+  const PREV = ["previous song", "previous track", "go back", "last song", "play previous", "back to"];
+  const QUEUE = ["to the queue", "to queue", "to my queue", "in the queue", "in queue", "add to queue", "queue up", "queue this"];
+  const EXACT = new Set(["stop", "pause", "resume", "next", "skip", "previous", "prev", "back", "silence", "unpause", "forward"]);
   if (EXACT.has(q)) return true;
-  for (const kw of [...STOP,...PAUSE,...RESUME,...NEXT,...PREV,...QUEUE])
+  for (const kw of [...STOP, ...PAUSE, ...RESUME, ...NEXT, ...PREV, ...QUEUE])
     if (q.includes(kw)) return true;
   if (q.startsWith("queue ")) return true;
   if (q.startsWith("add ") && !q.includes("to play") && !q.includes("to playlist")) return true;
@@ -30,24 +30,24 @@ function isMusicOnlyIntent(text) {
 function VeronicaUI({ token }) {
   const canvasRef = useRef(null);
 
-  const [uiState,      setUiState]      = useState('idle');
-  const [statusText,   setStatusText]   = useState('tap to speak');
-  const [transcript,   setTranscript]   = useState('');
-  const [response,     setResponse]     = useState('');
+  const [uiState, setUiState] = useState('idle');
+  const [statusText, setStatusText] = useState('tap to speak');
+  const [transcript, setTranscript] = useState('');
+  const [response, setResponse] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [authError,    setAuthError]    = useState(null);
-  const [textInput,    setTextInput]    = useState('');
+  const [authError, setAuthError] = useState(null);
+  const [textInput, setTextInput] = useState('');
   const [activeDocIds, setActiveDocIds] = useState(new Set()); // active RAG documents (multiple)
-  const [docPanelOpen,    setDocPanelOpen]    = useState(false);
-  const [showMemory,      setShowMemory]      = useState(false);
-  const [memories,        setMemories]        = useState([]);
+  const [docPanelOpen, setDocPanelOpen] = useState(false);
+  const [showMemory, setShowMemory] = useState(false);
+  const [memories, setMemories] = useState([]);
 
-  const stopSpeakingRef   = useRef(null);
-  const wasPlayingRef     = useRef(false); // track if music was playing before hold-to-speak
+  const stopSpeakingRef = useRef(null);
+  const wasPlayingRef = useRef(false); // track if music was playing before hold-to-speak
   const originalVolumeRef = useRef(0.5);   // volume before ducking — restored after response
-  const volumeRef         = useRef(0.5);   // always-current mirror of volume state (matches useSpotifyPlayer initial)
-  const uiStateRef      = useRef(uiState);
-  const inputRef        = useRef(null);
+  const volumeRef = useRef(0.5);   // always-current mirror of volume state (matches useSpotifyPlayer initial)
+  const uiStateRef = useRef(uiState);
+  const inputRef = useRef(null);
 
   useEffect(() => { uiStateRef.current = uiState; }, [uiState]);
 
@@ -94,21 +94,13 @@ function VeronicaUI({ token }) {
         wasPlayingRef.current = false;
         voiceService.controlMusic('resume')
           .then(() => setVolume(originalVolumeRef.current))
-          .catch(() => {});
+          .catch(() => { });
       }
     };
     try {
-      const result = await voiceService.synthesize(text);
-
-      // Browser TTS fallback (no backend audio)
-      if (result && result._browserTTS) {
-        const stopBrowser = voiceService.speakWithBrowser(result.text, onDone);
-        stopSpeakingRef.current = stopBrowser;
-        return;
-      }
-
+      const blob = await voiceService.synthesize(text);
       const stopFn = await voiceService.playAudioWithAnalyzer(
-        result,
+        blob,
         (fd) => pushFrequencyData(fd),
         onDone,
       );
@@ -116,13 +108,7 @@ function VeronicaUI({ token }) {
     } catch (err) {
       console.error('TTS:', err);
       stopSpeakingRef.current = null;
-      // Last resort: try browser TTS before going fully silent
-      try {
-        const stopBrowser = voiceService.speakWithBrowser(text, onDone);
-        stopSpeakingRef.current = stopBrowser;
-      } catch (_) {
-        onDone();
-      }
+      onDone();
     }
   }, [pushFrequencyData, resetToIdle, setVolume]);
 
@@ -150,7 +136,7 @@ function VeronicaUI({ token }) {
 
         if (action === 'play' && nlpResult.music_query) {
           // Restore volume before playing — then speak the confirmation
-          if (wasPlayingRef.current) { wasPlayingRef.current = false; setVolume(originalVolumeRef.current).catch(() => {}); }
+          if (wasPlayingRef.current) { wasPlayingRef.current = false; setVolume(originalVolumeRef.current).catch(() => { }); }
           if (!deviceId) {
             const msg = 'Spotify is not connected. Select Veronica in Spotify first.';
             setResponse(msg);
@@ -179,18 +165,18 @@ function VeronicaUI({ token }) {
           setResponse(nlpResult.response);
 
         } else if (action === 'next') {
-          if (wasPlayingRef.current) { wasPlayingRef.current = false; setVolume(originalVolumeRef.current).catch(() => {}); }
+          if (wasPlayingRef.current) { wasPlayingRef.current = false; setVolume(originalVolumeRef.current).catch(() => { }); }
           try { await voiceService.controlMusic('next'); } catch (e) { console.error(e); }
           setResponse(nlpResult.response);
 
         } else if (action === 'previous') {
-          if (wasPlayingRef.current) { wasPlayingRef.current = false; setVolume(originalVolumeRef.current).catch(() => {}); }
+          if (wasPlayingRef.current) { wasPlayingRef.current = false; setVolume(originalVolumeRef.current).catch(() => { }); }
           try { await voiceService.controlMusic('previous'); } catch (e) { console.error(e); }
           setResponse(nlpResult.response);
 
         } else if (action === 'queue' && nlpResult.music_query) {
           // Restore volume immediately — no TTS, music flows uninterrupted
-          if (wasPlayingRef.current) { wasPlayingRef.current = false; setVolume(originalVolumeRef.current).catch(() => {}); }
+          if (wasPlayingRef.current) { wasPlayingRef.current = false; setVolume(originalVolumeRef.current).catch(() => { }); }
           try {
             const r = await voiceService.addToQueue(nlpResult.music_query, deviceId);
             const msg = `Added ${r.track_name} by ${r.artist_name} to your queue.`;
@@ -209,7 +195,7 @@ function VeronicaUI({ token }) {
 
       // General query — was ducked during recording, now pause fully for spoken answer
       if (wasPlayingRef.current) {
-        await voiceService.controlMusic('pause').catch(() => {});
+        await voiceService.controlMusic('pause').catch(() => { });
         // wasPlayingRef stays true — speakText's onEnd will resume at full volume
       }
       await speakText(nlpResult.response);
@@ -219,7 +205,7 @@ function VeronicaUI({ token }) {
       resetToIdle(2500);
       if (wasPlayingRef.current) {
         wasPlayingRef.current = false;
-        voiceService.controlMusic('resume').catch(() => {});
+        voiceService.controlMusic('resume').catch(() => { });
       }
     } finally {
       setIsProcessing(false);
@@ -239,7 +225,7 @@ function VeronicaUI({ token }) {
     if (!isPaused && !wasPlayingRef.current) {
       wasPlayingRef.current = true;
       originalVolumeRef.current = volumeRef.current;
-      setVolume(0.05).catch(() => {});
+      setVolume(0.05).catch(() => { });
     }
     setUiState('listening');
     setStatusText('listening...');
@@ -266,7 +252,7 @@ function VeronicaUI({ token }) {
         resetToIdle(1800);
         if (wasPlayingRef.current) {
           wasPlayingRef.current = false;
-          voiceService.controlMusic('resume').catch(() => {});
+          voiceService.controlMusic('resume').catch(() => { });
         }
         return;
       }
@@ -291,7 +277,7 @@ function VeronicaUI({ token }) {
     const musicOnly = isMusicOnlyIntent(text);
     if (!musicOnly && !isPaused) {
       wasPlayingRef.current = true;
-      voiceService.controlMusic('pause').catch(() => {});
+      voiceService.controlMusic('pause').catch(() => { });
     }
     // For music-only intents, don't touch wasPlayingRef — music keeps playing
     setTextInput('');
@@ -374,7 +360,7 @@ function VeronicaUI({ token }) {
           if (!isPaused) {
             wasPlayingRef.current = true;
             originalVolumeRef.current = volumeRef.current;
-            setVolume(0.05).catch(() => {});
+            setVolume(0.05).catch(() => { });
           }
           handleMicPress();
         }, 300);
@@ -405,13 +391,13 @@ function VeronicaUI({ token }) {
         // Short tap while idle — toggle music pause/resume
         const s = uiStateRef.current;
         if (s === 'idle') {
-          voiceService.controlMusic(isPaused ? 'resume' : 'pause').catch(() => {});
+          voiceService.controlMusic(isPaused ? 'resume' : 'pause').catch(() => { });
         }
       }
     };
 
     window.addEventListener('keydown', dn);
-    window.addEventListener('keyup',   up);
+    window.addEventListener('keyup', up);
     return () => {
       clearTimeout(spaceDownTimeRef._timer);
       window.removeEventListener('keydown', dn);
@@ -431,7 +417,7 @@ function VeronicaUI({ token }) {
           onMouseDown={handleMicPress}
           onMouseUp={handleMicRelease}
           onTouchStart={(e) => { e.preventDefault(); handleMicPress(); }}
-          onTouchEnd={(e)   => { e.preventDefault(); handleMicRelease(); }}
+          onTouchEnd={(e) => { e.preventDefault(); handleMicRelease(); }}
           disabled={isProcessing}
           aria-label="Hold to speak"
         >
@@ -488,7 +474,7 @@ function VeronicaUI({ token }) {
               aria-label="Send"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
               </svg>
             </button>
           </div>
@@ -508,7 +494,7 @@ function VeronicaUI({ token }) {
               title="Documents"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z" />
               </svg>
               {activeDocIds.size > 0 ? `${activeDocIds.size} doc${activeDocIds.size > 1 ? 's' : ''} active` : 'docs'}
             </button>
@@ -521,7 +507,7 @@ function VeronicaUI({ token }) {
               title="Analyse screenshot (or type a question first)"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-8 13c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+                <path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-8 13c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" />
               </svg>
               screenshot
             </button>
@@ -533,7 +519,7 @@ function VeronicaUI({ token }) {
               title="View conversation memory"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
               </svg>
               memory
             </button>
@@ -559,13 +545,13 @@ function VeronicaUI({ token }) {
               {memories.length === 0
                 ? <p className="overlay-empty">No memories yet. Veronica learns as you talk.</p>
                 : <div className="overlay-list">
-                    {memories.map((m, i) => (
-                      <div key={i} className="overlay-item">
-                        <span className="overlay-item-cat">{m.category}</span>
-                        <span className="overlay-item-text">{m.fact}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {memories.map((m, i) => (
+                    <div key={i} className="overlay-item">
+                      <span className="overlay-item-cat">{m.category}</span>
+                      <span className="overlay-item-text">{m.fact}</span>
+                    </div>
+                  ))}
+                </div>
               }
             </div>
           )}
@@ -609,23 +595,23 @@ function VeronicaUI({ token }) {
         onClose={() => setDocPanelOpen(false)}
         activeDocIds={activeDocIds}
         onDocSelect={(docId) => {
-            setActiveDocIds((prev) => {
-              const next = new Set(prev);
-              if (!docId) {
-                // Clear all — clear conversation history so LLM forgets doc content
-                voiceService.clearHistory();
-                return new Set();
-              }
-              if (next.has(docId)) {
-                next.delete(docId);
-              } else {
-                next.add(docId);
-              }
-              // If all docs deactivated, clear history
-              if (next.size === 0) voiceService.clearHistory();
-              return next;
-            });
-          }}
+          setActiveDocIds((prev) => {
+            const next = new Set(prev);
+            if (!docId) {
+              // Clear all — clear conversation history so LLM forgets doc content
+              voiceService.clearHistory();
+              return new Set();
+            }
+            if (next.has(docId)) {
+              next.delete(docId);
+            } else {
+              next.add(docId);
+            }
+            // If all docs deactivated, clear history
+            if (next.size === 0) voiceService.clearHistory();
+            return next;
+          });
+        }}
       />
     </div>
   );

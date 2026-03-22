@@ -261,26 +261,36 @@ class OllamaClient:
 
 class NLPService:
     def __init__(self):
-        self._client = None
+        self._client:        Optional[OllamaClient] = None
+        self._vision_client: Optional[GeminiClient] = None
         self._conversation_history: list[dict] = []
 
     @property
     def client(self):
-        """Auto-select Gemini (cloud) or Ollama (local dev)."""
+        """Always use Ollama for chat — local or Docker service."""
         if self._client is None:
-            if settings.GEMINI_API_KEY:
-                self._client = GeminiClient(
-                    api_key=settings.GEMINI_API_KEY,
+            self._client = OllamaClient(
+                model=settings.OLLAMA_MODEL,
+                base_url=settings.OLLAMA_BASE_URL,
+            )
+            logger.info("LLM provider (Chat): Ollama %s @ %s",
+                        settings.OLLAMA_MODEL, settings.OLLAMA_BASE_URL)
+        return self._client
+
+    @property
+    def vision_client(self):
+        """Prefer OpenRouter/Gemini for vision (screenshots)."""
+        if getattr(self, "_vision_client", None) is None:
+            if settings.GEMINI_API_KEY or settings.OPENROUTER_API_KEY:
+                self._vision_client = GeminiClient(
+                    api_key=settings.GEMINI_API_KEY or settings.OPENROUTER_API_KEY,
                     model=settings.GEMINI_MODEL,
                 )
-                logger.info("LLM provider: Gemini %s", settings.GEMINI_MODEL)
+                logger.info("LLM provider (Vision): %s",
+                            "OpenRouter" if settings.OPENROUTER_API_KEY else "Gemini")
             else:
-                self._client = OllamaClient(
-                    model=settings.OLLAMA_MODEL,
-                    base_url=settings.OLLAMA_BASE_URL,
-                )
-                logger.info("LLM provider: Ollama %s (local)", settings.OLLAMA_MODEL)
-        return self._client
+                self._vision_client = self.client # Fallback to Ollama
+        return self._vision_client
 
     async def process_query(self, query: str, doc_context: str = "") -> dict:
         if not query.strip():
