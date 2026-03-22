@@ -93,7 +93,13 @@ async def spotify_login():
 @router.get("/auth/callback")
 async def spotify_callback(request: Request,
                             code: str = None, state: str = None, error: str = None):
-    frontend_url = "https://veronica-drab.vercel.app"
+    # Dynamically determine the frontend URL based on the request origin
+    referer = request.headers.get("referer", "")
+    if "localhost" in referer or "127.0.0.1" in referer:
+        frontend_url = "http://localhost:3000"
+    else:
+        frontend_url = "https://veronica-drab.vercel.app"
+
     if error:                       return RedirectResponse(f"{frontend_url}/?auth_error=denied",         status_code=302)
     if not code or not state:       return RedirectResponse(f"{frontend_url}/?auth_error=missing_params",  status_code=302)
     try:    await exchange_code_for_tokens(code, state)
@@ -101,7 +107,6 @@ async def spotify_callback(request: Request,
     except Exception:               return RedirectResponse(f"{frontend_url}/?auth_error=token_exchange",   status_code=302)
     
     return RedirectResponse(frontend_url, status_code=302)
-    return RedirectResponse("/", status_code=302)
 
 @router.get("/auth/token")
 async def get_token():
