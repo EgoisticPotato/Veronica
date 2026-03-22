@@ -1,0 +1,53 @@
+.butterfly-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.butterfly-svg {
+  width: 120px;
+  height: 120px;
+  overflow: visible;
+}
+
+.butterfly-wings {
+  transform-origin: 50% 50%;
+  animation: butterfly-breath 4s ease-in-out infinite;
+}
+
+.wing-path {
+  fill: rgba(255, 255, 255, 0.03);
+  transition: all 0.5s ease;
+}
+
+.top-left { animation: wing-float-tl 6s ease-in-out infinite; }
+.top-right { animation: wing-float-tr 6s ease-in-out infinite; }
+.bottom-left { animation: wing-float-bl 7s ease-in-out infinite; }
+.bottom-right { animation: wing-float-br 7s ease-in-out infinite; }
+
+@keyframes butterfly-breath {
+  0%, 100% { transform: scale(0.95) rotate(0deg); opacity: 0.8; }
+  50% { transform: scale(1.05) rotate(1deg); opacity: 1; }
+}
+
+@keyframes wing-float-tl {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-2px, -3px); }
+}
+
+@keyframes wing-float-tr {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(2px, -3px); }
+}
+
+@keyframes wing-float-bl {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-1px, 2px); }
+}
+
+@keyframes wing-float-br {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(1px, 2px); }
+}
