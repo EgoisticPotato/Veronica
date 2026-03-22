@@ -405,61 +405,129 @@ function VeronicaUI({ token }) {
     };
   }, [handleMicPress, handleMicRelease, isRecording, isProcessing, isPaused]);
 
+  // Orb state class
+  const orbClass = isRecording ? 'listening' : isProcessing ? 'processing' : uiState === 'speaking' ? 'speaking' : '';
+
+  // Status bar state class
+  const statusBarState = isRecording ? 'listening' : isProcessing ? 'processing' : uiState === 'speaking' ? 'speaking' : 'idle';
+  const statusBarVisible = statusBarState !== 'idle';
+
   return (
-    <div className={`veronica-root ${spotifyActive ? 'split-active' : ''}`}>
+    <>
+      {/* Neural Canvas */}
+      <canvas ref={canvasRef} className="neural-canvas" />
+      <div className="vignette" />
 
-      <div className="veronica-left">
-        <canvas ref={canvasRef} className="particle-canvas" />
+      {/* Toast */}
+      <div className={`v-toast ${(spotifyError || authError) ? 'show' : ''}`}>
+        {authError ? `Login failed: ${authError}` : spotifyError}
+      </div>
 
-        {/* Mic button */}
-        <button
-          className={`mic-btn ${isRecording ? 'mic-active' : ''} ${isProcessing ? 'mic-processing' : ''}`}
-          onMouseDown={handleMicPress}
-          onMouseUp={handleMicRelease}
-          onTouchStart={(e) => { e.preventDefault(); handleMicPress(); }}
-          onTouchEnd={(e) => { e.preventDefault(); handleMicRelease(); }}
-          disabled={isProcessing}
-          aria-label="Hold to speak"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            {isProcessing
-              ? <circle cx="12" cy="12" r="3" opacity="0.7" />
-              : <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
-            }
-          </svg>
-        </button>
+      {/* Header */}
+      <div className="v-header">
+        <div className="v-logo">
+          <div className="v-logo-dot" />
+          veronica
+        </div>
+        <div className="v-header-actions">
+          <button
+            className={`pill-btn ${docPanelOpen ? 'active' : ''}`}
+            onClick={() => setDocPanelOpen(!docPanelOpen)}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Docs{activeDocIds.size > 0 ? ` (${activeDocIds.size})` : ''}
+          </button>
+          <button
+            className={`pill-btn ${showMemory ? 'active' : ''}`}
+            onClick={showMemory ? () => setShowMemory(false) : handleLoadMemory}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            Memory
+          </button>
+          <button
+            className={`pill-btn ${spotifyActive ? 'active' : ''}`}
+            onClick={() => {/* Spotify auto-shows when active */}}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.65 14.4c-.22.35-.66.46-1.01.25-2.76-1.68-6.24-2.06-10.34-1.13-.39.09-.78-.15-.87-.54-.09-.39.15-.78.54-.87 4.48-1.02 8.33-.58 11.43 1.28.34.22.46.66.25 1.01zm1.24-2.76c-.27.43-.84.56-1.27.3-3.16-1.94-7.97-2.5-11.7-1.37-.48.14-.98-.14-1.12-.62-.14-.48.14-.98.62-1.12 4.26-1.29 9.55-.67 13.17 1.55.43.27.56.84.3 1.26zm.11-2.87c-3.79-2.25-10.04-2.46-13.66-1.36-.58.18-1.19-.15-1.37-.73-.18-.58.15-1.19.73-1.37 4.15-1.26 11.05-1.02 15.41 1.57.52.31.7 1 .39 1.52-.31.52-1 .7-1.5.37z"/></svg>
+            Music
+          </button>
+        </div>
+      </div>
 
-        {/* HUD */}
-        <div className="veronica-hud">
-          <div className="veronica-status">
-            <span className={`state-dot state-${uiState}`} />
-            <span className="status-text">{statusText}</span>
+      {/* Status Bar */}
+      <div className={`v-status-bar ${statusBarVisible ? 'visible' : ''} state-${statusBarState}`}>
+        <div className="v-status-dot" />
+        <span>{statusText}</span>
+      </div>
+
+      {/* Main App */}
+      <div className="veronica-app">
+        <div className="v-center-core">
+
+          {/* Orb System */}
+          <div className="orb-system">
+            <div className="orb-ring orb-ring-1" />
+            <div className="orb-ring orb-ring-2" />
+            <div className="orb-ring orb-ring-3" />
+            <div className="pulse-ring" />
+            <div className="pulse-ring" />
+            <div className="pulse-ring" />
+
+            <button
+              className={`orb-btn ${orbClass}`}
+              onMouseDown={handleMicPress}
+              onMouseUp={handleMicRelease}
+              onTouchStart={(e) => { e.preventDefault(); handleMicPress(); }}
+              onTouchEnd={(e) => { e.preventDefault(); handleMicRelease(); }}
+              disabled={isProcessing}
+              title="Hold SPACE or click to talk"
+            >
+              <svg className="orb-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+              </svg>
+            </button>
+
+            {/* Waveform */}
+            <div className={`waveform ${isRecording ? 'visible' : ''}`}>
+              <div className="wave-bar" /><div className="wave-bar" /><div className="wave-bar" />
+              <div className="wave-bar" /><div className="wave-bar" /><div className="wave-bar" />
+              <div className="wave-bar" />
+            </div>
           </div>
 
-          {(transcript || response) && (
-            <div className="conversation">
-              {transcript && (
-                <div className="conv-row conv-user">
-                  <span className="conv-label">you</span>
-                  <span className="conv-text">{transcript}</span>
+          {/* Conversation */}
+          <div className="conversation-area">
+            {transcript && (
+              <div className="msg user">
+                <div className="msg-avatar">YOU</div>
+                <div className="msg-bubble">{transcript}</div>
+              </div>
+            )}
+            {isProcessing && !response && (
+              <div className="msg veronica">
+                <div className="msg-avatar">V</div>
+                <div className="msg-bubble">
+                  <div className="typing-indicator">
+                    <div className="typing-dot" /><div className="typing-dot" /><div className="typing-dot" />
+                  </div>
                 </div>
-              )}
-              {response && (
-                <div className="conv-row conv-veronica">
-                  <span className="conv-label">veronica</span>
-                  <span className="conv-text">{response}</span>
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+            {response && (
+              <div className="msg veronica">
+                <div className="msg-avatar">V</div>
+                <div className="msg-bubble">{response}</div>
+              </div>
+            )}
+          </div>
 
-          {/* Text input */}
-          <div className="text-input-row">
+          {/* Input Row */}
+          <div className="input-row">
             <input
               ref={inputRef}
               type="text"
               className="text-input"
-              placeholder="or type here..."
+              placeholder="Type a message or hold SPACE to speak..."
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleTextSubmit(); }}
@@ -468,105 +536,54 @@ function VeronicaUI({ token }) {
               spellCheck="false"
             />
             <button
-              className="text-send-btn"
+              className="screenshot-btn"
+              onClick={handleScreenshot}
+              disabled={isProcessing}
+              title="Analyse screenshot"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+              </svg>
+            </button>
+            <button
+              className="send-btn"
               onClick={handleTextSubmit}
               disabled={!textInput.trim() || isProcessing || isRecording}
               aria-label="Send"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
               </svg>
             </button>
           </div>
 
-          <div className="keyboard-hint">
-            {uiState === 'speaking' ? 'hold space to interrupt' : 'hold space to speak'}
-          </div>
-
-          {/* Document panel trigger */}
-          {/* ── Toolbar ── */}
-          <div className="veronica-toolbar">
-
-            {/* Documents */}
-            <button
-              className={`toolbar-btn ${activeDocIds.size > 0 ? 'toolbar-btn-active' : ''}`}
-              onClick={() => setDocPanelOpen(true)}
-              title="Documents"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z" />
-              </svg>
-              {activeDocIds.size > 0 ? `${activeDocIds.size} doc${activeDocIds.size > 1 ? 's' : ''} active` : 'docs'}
-            </button>
-
-            {/* Screenshot */}
-            <button
-              className="toolbar-btn"
-              onClick={handleScreenshot}
-              disabled={isProcessing}
-              title="Analyse screenshot (or type a question first)"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-8 13c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" />
-              </svg>
-              screenshot
-            </button>
-
-            {/* Memory */}
-            <button
-              className={`toolbar-btn ${showMemory ? 'toolbar-btn-active' : ''}`}
-              onClick={showMemory ? () => setShowMemory(false) : handleLoadMemory}
-              title="View conversation memory"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
-              </svg>
-              memory
-            </button>
-
-
-
-          </div>
-
-          {spotifyReady && !spotifyActive && (
-            <div className="device-hint">veronica · {deviceId?.slice(0, 8)}…</div>
-          )}
-
-          {/* ── Memory overlay ── */}
-          {showMemory && (
-            <div className="overlay-panel">
-              <div className="overlay-header">
-                <span className="overlay-title">memory</span>
-                <div className="overlay-actions">
-                  <button className="overlay-action-btn" onClick={handleClearMemory} title="Clear all">clear</button>
-                  <button className="overlay-close" onClick={() => setShowMemory(false)}>×</button>
-                </div>
-              </div>
-              {memories.length === 0
-                ? <p className="overlay-empty">No memories yet. Veronica learns as you talk.</p>
-                : <div className="overlay-list">
-                  {memories.map((m, i) => (
-                    <div key={i} className="overlay-item">
-                      <span className="overlay-item-cat">{m.category}</span>
-                      <span className="overlay-item-text">{m.fact}</span>
-                    </div>
-                  ))}
-                </div>
-              }
-            </div>
-          )}
+          <div className="hold-hint">Hold <kbd>SPACE</kbd> to speak — release to send</div>
 
         </div>
       </div>
 
-      {/* Right panel */}
-      <div className={`veronica-right ${spotifyActive ? 'panel-visible' : ''}`}>
-        <div className="panel-divider" />
-        {(spotifyError || authError) && (
-          <div className="sp-err-banner">
-            {authError ? `Login failed: ${authError}` : spotifyError}
-          </div>
-        )}
+      {/* Memory Panel (floating bottom-left) */}
+      <div className={`memory-panel ${showMemory ? 'visible' : ''}`}>
+        <div className="memory-title">
+          <span>Remembered</span>
+          <button className="memory-clear-btn" onClick={handleClearMemory}>clear</button>
+        </div>
+        <div>
+          {memories.length === 0
+            ? <div className="memory-item"><span style={{color:'var(--text-dim)',fontSize:'11px'}}>Nothing yet — start talking!</span></div>
+            : memories.slice(-8).map((m, i) => (
+              <div key={i} className="memory-item">
+                <span className="memory-key">{m.category}:</span>
+                <span>{m.fact}</span>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      {/* Spotify Panel (floating bottom-right) */}
+      {spotifyActive && (
         <SpotifyPlayer
           currentTrack={currentTrack}
           isPaused={isPaused}
@@ -584,9 +601,8 @@ function VeronicaUI({ token }) {
           onQueueChange={refreshQueue}
           onPlayUri={playUri}
           onLocalQueueReorder={handleLocalQueueReorder}
-
         />
-      </div>
+      )}
 
       {micError && <div className="mic-error">Mic: {micError}</div>}
 
@@ -598,7 +614,6 @@ function VeronicaUI({ token }) {
           setActiveDocIds((prev) => {
             const next = new Set(prev);
             if (!docId) {
-              // Clear all — clear conversation history so LLM forgets doc content
               voiceService.clearHistory();
               return new Set();
             }
@@ -607,13 +622,12 @@ function VeronicaUI({ token }) {
             } else {
               next.add(docId);
             }
-            // If all docs deactivated, clear history
             if (next.size === 0) voiceService.clearHistory();
             return next;
           });
         }}
       />
-    </div>
+    </>
   );
 }
 

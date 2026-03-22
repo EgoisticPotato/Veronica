@@ -1,572 +1,296 @@
-/* ── Inactive ───────────────────────────────────────────────────────────────── */
-.sp-inactive {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  width: 100%;
-  padding: 2rem;
-  text-align: center;
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPOTIFY PLAYER — Floating Panel (bottom-right)
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-.sp-inactive-icon { opacity: 0.35; }
-
-.sp-inactive-title {
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  color: rgba(255,255,255,0.25);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
-.sp-inactive-hint {
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  color: rgba(255,255,255,0.18);
-  letter-spacing: 0.08em;
-  line-height: 1.7;
-}
-
-.sp-inactive-hint em {
-  color: rgba(255,255,255,0.38);
-  font-style: normal;
-}
-
-/* ── Active player ──────────────────────────────────────────────────────────── */
-/*
- * sp-root sits inside .veronica-right which already has
- * justify-content: center + align-items: center.
- * We give sp-root a fixed max-width and let it be naturally centred.
- */
+/* ── Floating container ─── */
 .sp-root {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 320px;
-  padding: 0 1.5rem;
-  gap: 0;
+  position: fixed; bottom: 28px; right: 28px; z-index: 100;
+  width: 300px;
+  background: rgba(8,4,16,0.88);
+  border: 0.5px solid var(--glass-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(20px);
+  padding: 16px;
+  display: flex; flex-direction: column;
+  animation: spPanelIn 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes spPanelIn {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
-/* ── Album art ──────────────────────────────────────────────────────────────── */
+/* ── Inactive state ─── */
+.sp-inactive {
+  position: fixed; bottom: 28px; right: 28px; z-index: 100;
+  width: 280px;
+  background: rgba(8,4,16,0.85);
+  border: 0.5px solid var(--glass-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(20px);
+  padding: 20px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  text-align: center;
+}
+.sp-inactive-icon { opacity: 0.4; }
+.sp-inactive-title {
+  font-size: 13px; font-weight: 500;
+  color: var(--text-muted); letter-spacing: 0.02em;
+}
+.sp-inactive-hint {
+  font-size: 12px; color: var(--text-dim);
+  line-height: 1.5;
+}
+.sp-inactive-hint em { color: var(--text-muted); font-style: normal; }
+
+/* ── Track info row ─── */
+.sp-track-row {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+}
+
 .sp-art-wrap {
+  width: 48px; height: 48px; border-radius: 8px;
+  background: linear-gradient(135deg, #1DB954, #191414);
+  overflow: hidden; flex-shrink: 0;
   position: relative;
-  width: 100%;
-  max-width: 240px;
-  aspect-ratio: 1;
-  border-radius: 8px;
-  overflow: hidden;
-  flex-shrink: 0;
-  box-shadow: 0 20px 64px rgba(0,0,0,0.8);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
-
-.sp-art-blur {
-  position: absolute;
-  inset: -30px;
-  background-size: cover;
-  background-position: center;
-  filter: blur(28px) saturate(1.5) brightness(0.3);
-  transform: scale(1.1);
-  pointer-events: none;
-}
-
+.sp-art-blur { display: none; }
 .sp-art {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 8px;
-  display: block;
+  width: 100%; height: 100%; object-fit: cover;
+  border-radius: 8px; display: block;
 }
 
-/* ── Track info ─────────────────────────────────────────────────────────────── */
-.sp-meta {
-  margin-top: 24px;
-  text-align: center;
-  width: 100%;
-}
-
+.sp-meta { flex: 1; min-width: 0; }
 .sp-track {
-  font-family: 'Courier New', monospace;
-  font-size: 15px;
-  color: rgba(255,255,255,0.9);
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 13px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text);
 }
-
 .sp-artist {
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  color: rgba(255,255,255,0.4);
-  letter-spacing: 0.18em;
-  margin-top: 6px;
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 11px; color: var(--text-muted); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
 .sp-album {
-  font-family: 'Courier New', monospace;
-  font-size: 10px;
-  color: rgba(255,255,255,0.18);
-  letter-spacing: 0.12em;
-  margin-top: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 10px; color: var(--text-dim); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* ── Progress bar ───────────────────────────────────────────────────────────── */
+/* ── Progress bar ─── */
 .sp-progress-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  margin-top: 24px;
-  cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; margin-bottom: 14px;
 }
-
 .sp-time {
-  font-family: 'Courier New', monospace;
-  font-size: 10px;
-  color: rgba(255,255,255,0.22);
-  letter-spacing: 0.04em;
-  min-width: 32px;
-  text-align: center;
-  flex-shrink: 0;
-  user-select: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-dim);
+  min-width: 28px; text-align: center; flex-shrink: 0;
 }
-
 .sp-progress-track {
-  flex: 1;
-  height: 4px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 2px;
-  position: relative;
-  cursor: pointer;
-  /* Expand click area vertically */
-  padding: 8px 0;
-  margin: -8px 0;
-}
-
-.sp-progress-track:hover .sp-progress-fill {
-  background: rgba(255,255,255,0.75);
-}
-
-.sp-progress-track:hover .sp-progress-thumb {
-  opacity: 1;
-  transform: translateX(-50%) translateY(-50%) scale(1);
-}
-
-.sp-progress-fill {
-  height: 4px;
-  background: rgba(255,255,255,0.5);
-  border-radius: 2px;
-  pointer-events: none;
-  transition: background 0.2s;
-  /* No transition on width — we want it to feel live */
-}
-
-.sp-progress-thumb {
-  position: absolute;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #fff;
-  transform: translateX(-50%) translateY(-50%) scale(0);
-  opacity: 0;
-  transition: opacity 0.15s, transform 0.15s;
-  pointer-events: none;
-}
-
-/* ── Controls ───────────────────────────────────────────────────────────────── */
-.sp-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-  margin-top: 22px;
-  width: 100%;
-}
-
-.sp-btn {
-  background: transparent;
-  border: none;
-  color: rgba(255,255,255,0.38);
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.18s, background 0.18s;
-  /* Ensure click target is large enough */
-  min-width: 36px;
-  min-height: 36px;
-}
-
-.sp-btn:hover {
-  color: rgba(255,255,255,0.85);
-  background: rgba(255,255,255,0.06);
-}
-
-.sp-btn:active {
-  transform: scale(0.92);
-}
-
-.sp-play {
-  width: 52px !important;
-  height: 52px !important;
-  min-width: 52px !important;
-  border: 0.5px solid rgba(255,255,255,0.22) !important;
-  color: rgba(255,255,255,0.78) !important;
-  border-radius: 50% !important;
-}
-
-.sp-play:hover {
-  border-color: rgba(255,255,255,0.6) !important;
-  color: #fff !important;
-  background: rgba(255,255,255,0.06) !important;
-}
-
-/* ── Volume ─────────────────────────────────────────────────────────────────── */
-.sp-volume {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  margin-top: 18px;
-}
-
-.sp-vol-slider {
-  flex: 1;
-  height: 3px;
-  appearance: none;
-  -webkit-appearance: none;
+  flex: 1; height: 3px;
   background: rgba(255,255,255,0.12);
-  border-radius: 2px;
-  outline: none;
-  cursor: pointer;
+  border-radius: 2px; cursor: pointer;
+  position: relative;
+}
+.sp-progress-fill {
+  height: 100%; border-radius: 2px;
+  background: #1DB954;
+  transition: width 0.5s linear;
+}
+.sp-progress-thumb {
+  position: absolute; top: 50%;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #1DB954;
+  transform: translateX(-50%) translateY(-50%) scale(0);
+  opacity: 0; transition: opacity 0.15s, transform 0.15s;
+  pointer-events: none;
+}
+.sp-progress-track:hover .sp-progress-fill { background: #1ed760; }
+.sp-progress-track:hover .sp-progress-thumb {
+  opacity: 1; transform: translateX(-50%) translateY(-50%) scale(1);
 }
 
+/* ── Controls ─── */
+.sp-controls {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.sp-btn {
+  background: none; border: none; color: var(--text-muted);
+  cursor: pointer; padding: 6px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  min-width: 32px; min-height: 32px;
+}
+.sp-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.sp-btn:active { transform: scale(0.92); }
+.sp-play {
+  width: 36px !important; height: 36px !important;
+  min-width: 36px !important;
+  background: #1DB954 !important; border-radius: 50% !important; color: #000 !important;
+  border: none !important;
+}
+.sp-play:hover { background: #1ed760 !important; transform: scale(1.06); }
+
+/* ── Volume ─── */
+.sp-volume {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+}
+.sp-vol-slider {
+  flex: 1; height: 3px; appearance: none; -webkit-appearance: none;
+  background: rgba(255,255,255,0.15); border-radius: 2px;
+  cursor: pointer; outline: none;
+}
 .sp-vol-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.6);
-  cursor: pointer;
-  transition: background 0.18s, transform 0.18s;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #1DB954; cursor: pointer;
 }
-
-.sp-vol-slider::-webkit-slider-thumb:hover {
-  background: #fff;
-  transform: scale(1.2);
-}
-
 .sp-vol-slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.6);
-  border: none;
-  cursor: pointer;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #1DB954; border: none; cursor: pointer;
 }
 
-/* ── Add to queue ───────────────────────────────────────────────────────────── */
+/* ── Add to queue ─── */
 .sp-queue-add {
-  width: 100%;
-  margin-top: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  width: 100%; margin-top: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  border-top: 0.5px solid rgba(255,255,255,0.06);
+  padding-top: 12px;
 }
-
 .sp-queue-add-label {
-  font-family: 'Courier New', monospace;
-  font-size: 9px;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.18);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-dim);
 }
-
 .sp-queue-add-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
+  display: flex; gap: 6px; align-items: center;
 }
-
 .sp-queue-input {
   flex: 1;
   background: rgba(255,255,255,0.04);
-  border: 0.5px solid rgba(255,255,255,0.12);
-  border-radius: 3px;
-  padding: 7px 10px;
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  color: rgba(255,255,255,0.7);
-  outline: none;
-  transition: border-color 0.2s;
-  caret-color: rgba(255,255,255,0.5);
+  border: 0.5px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 7px 12px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px; color: var(--text);
+  outline: none; transition: border-color 0.2s;
 }
-
-.sp-queue-input::placeholder { color: rgba(255,255,255,0.18); }
-.sp-queue-input:focus { border-color: rgba(255,255,255,0.3); }
+.sp-queue-input::placeholder { color: var(--text-dim); }
+.sp-queue-input:focus { border-color: rgba(29,185,84,0.4); }
 .sp-queue-input:disabled { opacity: 0.4; }
 
 .sp-queue-btn {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 3px;
-  background: transparent;
-  border: 0.5px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.35);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+  background: transparent; border: 0.5px solid var(--glass-border);
+  color: var(--text-muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
   transition: all 0.18s;
 }
-
-.sp-queue-btn:hover:not(:disabled) {
-  border-color: rgba(255,255,255,0.4);
-  color: rgba(255,255,255,0.85);
-}
-
+.sp-queue-btn:hover:not(:disabled) { border-color: #1DB954; color: #1DB954; }
 .sp-queue-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .sp-queue-msg {
-  font-family: 'Courier New', monospace;
-  font-size: 10px;
-  color: rgba(255,255,255,0.4);
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 11px; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* ── Queue list ─────────────────────────────────────────────────────────────── */
+/* ── Queue list ─── */
 .sp-queue {
-  width: 100%;
-  margin-top: 20px;
+  width: 100%; margin-top: 12px;
   border-top: 0.5px solid rgba(255,255,255,0.06);
-  padding-top: 16px;
+  padding-top: 12px;
 }
-
 .sp-queue-title {
-  font-family: 'Courier New', monospace;
-  font-size: 9px;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.18);
-  margin-bottom: 10px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px;
 }
-
 .sp-queue-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 220px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  /* Subtle scrollbar */
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 160px; overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.1) transparent;
+  scrollbar-color: rgba(29,185,84,0.3) transparent;
 }
-
 .sp-queue-list::-webkit-scrollbar { width: 3px; }
-.sp-queue-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+.sp-queue-list::-webkit-scrollbar-thumb { background: rgba(29,185,84,0.3); border-radius: 2px; }
 
 .sp-queue-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 0;
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: background 0.15s;
 }
+.sp-queue-item:hover { background: rgba(255,255,255,0.05); }
 
-.sp-queue-art {
-  width: 34px;
-  height: 34px;
-  border-radius: 3px;
-  object-fit: cover;
-  flex-shrink: 0;
-  opacity: 0.75;
-}
-
-.sp-queue-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.sp-queue-name {
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  color: rgba(255,255,255,0.7);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sp-queue-artist {
-  font-family: 'Courier New', monospace;
-  font-size: 9px;
-  color: rgba(255,255,255,0.3);
-  letter-spacing: 0.08em;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sp-queue-dur {
-  font-family: 'Courier New', monospace;
-  font-size: 9px;
-  color: rgba(255,255,255,0.2);
-  flex-shrink: 0;
-  letter-spacing: 0.04em;
-}
-
-/* ── Clickable queue items ──────────────────────────────────────────────────── */
-.sp-queue-item {
-  cursor: pointer;
-  border-radius: 3px;
-  transition: background 0.15s;
-}
-
-.sp-queue-item:hover {
-  background: rgba(255,255,255,0.05);
-}
-
-.sp-queue-item:hover .sp-queue-name {
-  color: rgba(255,255,255,0.95);
-}
-
-.sp-queue-item:hover .sp-queue-art {
-  opacity: 0.4;
-}
-
-/* Album art wrapper — needed for play icon overlay */
 .sp-queue-art-wrap {
-  position: relative;
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
+  position: relative; width: 30px; height: 30px; flex-shrink: 0;
 }
-
-/* Play icon — hidden by default, shown on hover */
+.sp-queue-art {
+  width: 30px; height: 30px; border-radius: 5px;
+  object-fit: cover; opacity: 0.75;
+}
 .sp-queue-play-icon {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  opacity: 0;
-  transition: opacity 0.15s;
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; opacity: 0; transition: opacity 0.15s;
 }
+.sp-queue-item:hover .sp-queue-play-icon { opacity: 1; }
+.sp-queue-item:hover .sp-queue-art { opacity: 0.4; }
 
-.sp-queue-item:hover .sp-queue-play-icon {
-  opacity: 1;
+.sp-queue-info { flex: 1; min-width: 0; }
+.sp-queue-name {
+  font-size: 12px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-/* ── Drag-to-reorder ────────────────────────────────────────────────────────── */
-.sp-queue-drag-hint {
-  color: rgba(255,255,255,0.1);
-  font-size: 8px;
-  letter-spacing: 0.1em;
+.sp-queue-artist {
+  font-size: 10px; color: var(--text-muted); margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-.sp-queue-drag-handle {
+.sp-queue-dur {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-dim);
   flex-shrink: 0;
-  color: rgba(255,255,255,0.15);
-  cursor: grab;
-  padding: 4px 2px;
-  display: flex;
-  align-items: center;
-  transition: color 0.15s;
 }
 
-.sp-queue-item:hover .sp-queue-drag-handle {
-  color: rgba(255,255,255,0.4);
-}
+/* ── Drag ─── */
+.sp-queue-drag-hint { display: none; }
+.sp-queue-drag-handle { display: none; }
+.sp-queue-drag-over { border-top: 1.5px solid rgba(29,185,84,0.5) !important; }
 
-.sp-queue-item[draggable="true"] {
-  cursor: grab;
-}
-
-.sp-queue-item[draggable="true"]:active {
-  cursor: grabbing;
-  opacity: 0.6;
-}
-
-.sp-queue-drag-over {
-  border-top: 1.5px solid rgba(255,255,255,0.35) !important;
-  background: rgba(255,255,255,0.04) !important;
-}
-
-/* ── Lyrics ─────────────────────────────────────────────────────────────────── */
+/* ── Lyrics ─── */
 .sp-lyrics-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  width: 100%;
-  padding: 7px 10px;
-  margin-top: 14px;
-  border-radius: 3px;
-  border: 0.5px solid rgba(255,255,255,0.1);
-  background: transparent;
-  color: rgba(255,255,255,0.3);
-  font-family: 'Courier New', monospace;
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.18s;
-  justify-content: center;
+  display: flex; align-items: center; gap: 5px; width: 100%;
+  padding: 7px 10px; margin-top: 10px;
+  border-radius: 20px; border: 0.5px solid var(--glass-border);
+  background: transparent; color: var(--text-muted);
+  font-size: 11px; font-weight: 500;
+  cursor: pointer; transition: all 0.18s; justify-content: center;
 }
-.sp-lyrics-btn:hover { border-color: rgba(255,255,255,0.35); color: rgba(255,255,255,0.7); }
+.sp-lyrics-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
 .sp-lyrics-btn-active {
-  border-color: rgba(255,255,255,0.4) !important;
-  color: rgba(255,255,255,0.8) !important;
-  background: rgba(255,255,255,0.04) !important;
+  border-color: rgba(124,58,237,0.4) !important;
+  color: rgba(167,139,250,1) !important;
+  background: var(--acc-soft) !important;
 }
 
 .sp-lyrics {
-  width: 100%;
-  margin-top: 12px;
-  border-top: 0.5px solid rgba(255,255,255,0.06);
-  padding-top: 14px;
-  max-height: 300px;
-  overflow-y: auto;
+  width: 100%; margin-top: 8px;
+  max-height: 200px; overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.1) transparent;
+  scrollbar-color: rgba(124,58,237,0.3) transparent;
 }
 .sp-lyrics::-webkit-scrollbar { width: 3px; }
-.sp-lyrics::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+.sp-lyrics::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 2px; }
 
 .sp-lyrics-loading, .sp-lyrics-empty {
-  font-family: 'Courier New', monospace;
-  font-size: 10px;
-  color: rgba(255,255,255,0.2);
-  text-align: center;
-  letter-spacing: 0.1em;
-  padding: 12px 0;
+  font-size: 11px; color: var(--text-dim);
+  text-align: center; padding: 10px 0;
 }
-
 .sp-lyrics-text { display: flex; flex-direction: column; }
+.sp-lyrics-line { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin: 0; }
+.sp-lyrics-gap { margin: 4px 0 0; min-height: 4px; }
 
-.sp-lyrics-line {
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  color: rgba(255,255,255,0.65);
-  line-height: 1.7;
-  margin: 0;
+/* ── Responsive ─── */
+@media (max-width: 480px) {
+  .sp-root, .sp-inactive {
+    right: 12px; bottom: 12px; width: calc(100vw - 24px);
+  }
 }
-
-.sp-lyrics-gap { margin: 6px 0 0; min-height: 6px; }

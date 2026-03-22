@@ -350,6 +350,24 @@ async def delete_memory_item(index: int):
     return JSONResponse({"status": "deleted"})
 
 
+@router.get("/memory")
+async def get_memory():
+    mem = get_memory_service()
+    return JSONResponse({"memories": mem.get_all_flat()})
+
+@router.post("/memory")
+async def add_memory(fact: str = Form(...), category: str = Form("general")):
+    mem = get_memory_service()
+    # Simple direct add (will be merged into categorized dict)
+    mem.update_memory({category: {fact: "true"}}) # legacy shim for explicit UI add
+    return JSONResponse({"status": "added"})
+
+@router.delete("/memory")
+async def clear_memory():
+    get_memory_service().clear()
+    return JSONResponse({"status": "cleared"})
+
+
 # ─── Screenshot Analysis ───────────────────────────────────────────────────────
 
 @router.post("/vision/screenshot")

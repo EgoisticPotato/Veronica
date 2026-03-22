@@ -1,122 +1,227 @@
-"""
-Conversation Memory Service
-Persists user facts across sessions in backend/data/memory.json.
-
-Two types of memory:
-  1. Explicit — user says "remember that my name is Mehul"
-  2. Auto-extracted — NLP detects facts ("my name is X", "I work at Y", "I prefer Z")
-
-Memory is injected into the system prompt so Veronica remembers the user across restarts.
-"""
-
 import json
 import logging
 import re
-import time
+import asyncio
+import threading
 from pathlib import Path
-from typing import Optional
+from datetime import datetime
+from typing import Optional, Any
+
+import httpx
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_MEMORY_FILE = Path(__file__).parent.parent / "data" / "memory.json"
+# Use a new file to avoid format conflicts with existing flat memory
+_MEMORY_FILE = Path(__file__).parent.parent / "data" / "long_term_memory.json"
+_lock = threading.Lock()
 
-# Patterns that signal a memorable fact
-_MEMORY_PATTERNS = [
-    (r"\bmy name is ([A-Za-z ]+)",              "name"),
-    (r"\bi(?:'m| am) ([A-Za-z ]+)",             "identity"),
-    (r"\bi work (?:at|for) ([A-Za-z0-9 ]+)",    "workplace"),
-    (r"\bi (?:live|am) in ([A-Za-z ,]+)",        "location"),
-    (r"\bi prefer ([A-Za-z0-9 ]+)",              "preference"),
-    (r"\bi(?:'m| am) (\d+) years old",           "age"),
-    (r"\bmy (?:favourite|favorite) .+ is (.+)",  "favourite"),
-    (r"\bremember that (.+)",                     "explicit"),
-    (r"\bmy birthday is (.+)",                    "birthday"),
-]
+MAX_VALUE_LENGTH = 300
 
-_MAX_MEMORIES = 50   # cap so prompt doesn't balloon
-
+def _empty_memory() -> dict:
+    return {
+        "identity":      {},
+        "preferences":   {},
+        "relationships": {},
+        "notes":         {}
+    }
 
 class MemoryService:
     def __init__(self):
-        self._memories: list[dict] = []
-        self._load()
+        self._memory = self._load()
 
-    def _load(self) -> None:
-        try:
-            _MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
-            if _MEMORY_FILE.exists():
-                self._memories = json.loads(_MEMORY_FILE.read_text())
-                logger.info("Memory loaded: %d facts", len(self._memories))
-        except Exception as e:
-            logger.warning("Could not load memory: %s", e)
-            self._memories = []
+    def _load(self) -> dict:
+        if not _MEMORY_FILE.exists():
+            return _empty_memory()
+        with _lock:
+            try:
+                data = json.loads(_MEMORY_FILE.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    # Ensure all keys exist
+                    base = _empty_memory()
+                    base.update(data)
+                    return base
+                return _empty_memory()
+            except Exception as e:
+                logger.error("Memory load error: %s", e)
+                return _empty_memory()
 
     def _save(self) -> None:
+        _MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with _lock:
+            try:
+                _MEMORY_FILE.write_text(
+                    json.dumps(self._memory, indent=2, ensure_ascii=False),
+                    encoding="utf-8"
+                )
+            except Exception as e:
+                logger.error("Memory save error: %s", e)
+
+    def _truncate_value(self, val: Any) -> str:
+        s = str(val)
+        if len(s) > MAX_VALUE_LENGTH:
+            return s[:MAX_VALUE_LENGTH].rstrip() + "…"
+        return s
+
+    def _recursive_update(self, target: dict, updates: dict) -> bool:
+        changed = False
+        for key, value in updates.items():
+            if value is None: continue
+            if isinstance(value, str) and not value.strip(): continue
+
+            # If it's a nested category (no "value" key)
+            if isinstance(value, dict) and "value" not in value:
+                if key not in target or not isinstance(target[key], dict):
+                    target[key] = {}
+                    changed = True
+                if self._recursive_update(target[key], value):
+                    changed = True
+            else:
+                # Leaf node: {"value": "..."} or just "..."
+                if isinstance(value, dict) and "value" in value:
+                    entry = {"value": self._truncate_value(value["value"])}
+                else:
+                    entry = {"value": self._truncate_value(value)}
+
+                if key not in target or target[key] != entry:
+                    target[key] = entry
+                    changed = True
+        return changed
+
+    def update_memory(self, updates: dict) -> None:
+        """Merge new facts into storage."""
+        if not updates: return
+        if self._recursive_update(self._memory, updates):
+            self._save()
+            logger.info("Memory updated: %s", list(updates.keys()))
+
+    async def extract_memory_async(self, user_text: str, assistant_text: str = "") -> None:
+        """
+        Two-stage LLM extraction (Mark-style).
+        Filtered by a quick check to save tokens.
+        """
+        if not settings.GEMINI_API_KEY: return
+        
+        text = user_text.strip()
+        if len(text) < 8: return
+
         try:
-            _MEMORY_FILE.write_text(json.dumps(self._memories, indent=2))
+            # Stage 1: Relevance Check
+            is_relevant = await self._llm_check_relevance(text)
+            if not is_relevant: return
+
+            # Stage 2: JSON Extraction
+            data = await self._llm_extract_json(text)
+            if data:
+                self.update_memory(data)
         except Exception as e:
-            logger.warning("Could not save memory: %s", e)
+            logger.warning("Auto-extraction failed: %s", e)
 
-    def add(self, fact: str, category: str = "general") -> dict:
-        """Explicitly store a fact."""
-        # Deduplicate by category
-        self._memories = [m for m in self._memories if m.get("category") != category
-                          or category == "general"]
-        entry = {
-            "fact":      fact.strip(),
-            "category":  category,
-            "timestamp": time.time(),
+    async def _llm_check_relevance(self, text: str) -> bool:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}"
+        payload = {
+            "contents": [{
+                "parts": [{
+                    "text": (
+                        "Does this message contain personal facts about the user "
+                        "(name, age, city, job, hobby, relationship, birthday, preference)? "
+                        f"Reply only YES or NO.\n\nMessage: {text[:300]}"
+                    )
+                }]
+            }]
         }
-        self._memories.append(entry)
-        # Keep most recent MAX_MEMORIES
-        self._memories = self._memories[-_MAX_MEMORIES:]
-        self._save()
-        logger.info("Memory added [%s]: %s", category, fact[:60])
-        return entry
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(url, json=payload)
+            if r.status_code == 200:
+                res = r.json()
+                txt = res["candidates"][0]["content"]["parts"][0]["text"].upper()
+                return "YES" in txt
+        return False
 
-    def auto_extract(self, text: str) -> list[dict]:
-        """
-        Scan user utterance for memorable facts and store them automatically.
-        Returns list of newly stored entries.
-        """
-        added = []
-        lower = text.lower()
-        for pattern, category in _MEMORY_PATTERNS:
-            m = re.search(pattern, lower)
-            if m:
-                fact = m.group(1).strip().rstrip(".,!?")
-                if fact and len(fact) > 1:
-                    entry = self.add(f"{category}: {fact}", category)
-                    added.append(entry)
-        return added
+    async def _llm_extract_json(self, text: str) -> dict:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}"
+        prompt = (
+            "Extract personal facts from this message. Return ONLY valid JSON or {} if nothing found.\n"
+            "Categories: identity (name, age, birthday, city), preferences (hobbies, music, food), relationships, notes (job, other).\n"
+            "Format:\n"
+            '{"identity":{"name":{"value":"..."}}, "preferences":{"hobby":{"value":"..."}}, "notes":{"job":{"value":"..."}}}\n\n'
+            f"Message: {text[:500]}\n\nJSON:"
+        )
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"response_mime_type": "application/json"}
+        }
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.post(url, json=payload)
+            if r.status_code == 200:
+                res = r.json()
+                raw = res["candidates"][0]["content"]["parts"][0]["text"].strip()
+                # Handle potential markdown fencing
+                raw = re.sub(r"```(?:json)?", "", raw).strip().rstrip("`").strip()
+                return json.loads(raw)
+        return {}
 
-    def get_all(self) -> list[dict]:
-        return list(self._memories)
+    def get_all_flat(self) -> list[dict]:
+        """Convert nested dict to flat list for Veronica's frontend UI."""
+        flat = []
+        for cat, items in self._memory.items():
+            for key, entry in items.items():
+                # Some items might be nested deeper (recursive walk if needed, but Mark's prompt is shallow-ish)
+                if isinstance(entry, dict) and "value" in entry:
+                    flat.append({
+                        "category": cat,
+                        "fact": f"{entry['value']}",
+                        "timestamp": 0 # Not tracked in Mark's format
+                    })
+                elif isinstance(entry, dict):
+                    # One level deeper (e.g. identity -> name -> value)
+                    for subkey, subentry in entry.items():
+                        if isinstance(subentry, dict) and "value" in subentry:
+                            flat.append({
+                                "category": f"{cat}/{key}",
+                                "fact": f"{subentry['value']}",
+                                "timestamp": 0
+                            })
+        return flat
 
     def clear(self) -> None:
-        self._memories = []
+        self._memory = _empty_memory()
         self._save()
         logger.info("Memory cleared")
 
-    def delete(self, index: int) -> bool:
-        if 0 <= index < len(self._memories):
-            removed = self._memories.pop(index)
-            self._save()
-            logger.info("Memory deleted: %s", removed["fact"][:60])
-            return True
-        return False
+    def format_for_prompt(self) -> str:
+        """Ported from Mark: converts nested dict to [USER MEMORY] block."""
+        lines = []
+        
+        # Identity
+        id_ = self._memory.get("identity", {})
+        for k in ["name", "age", "birthday", "city"]:
+            v = id_.get(k, {}).get("value")
+            if v: lines.append(f"{k.capitalize()}: {v}")
 
-    def as_prompt_block(self) -> str:
-        """Format memories for injection into system prompt."""
-        if not self._memories:
-            return ""
-        facts = [f"- {m['fact']}" for m in self._memories[-20:]]  # last 20
-        return (
-            "[What I know about the user:]\n"
-            + "\n".join(facts)
-            + "\n[Use the above to personalise responses naturally.]"
-        )
+        # Prefs
+        prefs = self._memory.get("preferences", {})
+        for k, e in list(prefs.items())[:5]:
+            v = e.get("value") if isinstance(e, dict) else e
+            if v: lines.append(f"{k.replace('_', ' ').title()}: {v}")
 
+        # Relationships
+        rels = self._memory.get("relationships", {})
+        for k, e in list(rels.items())[:5]:
+            v = e.get("value") if isinstance(e, dict) else e
+            if v: lines.append(f"{k.title()}: {v}")
+
+        # Notes
+        notes = self._memory.get("notes", {})
+        for k, e in list(notes.items())[:5]:
+            v = e.get("value") if isinstance(e, dict) else e
+            if v: lines.append(f"{k}: {v}")
+
+        if not lines: return ""
+        
+        res = "[USER MEMORY]\n" + "\n".join(f"- {l}" for l in lines)
+        if len(res) > 800: res = res[:797] + "…"
+        return res + "\n"
 
 _memory_service = MemoryService()
 

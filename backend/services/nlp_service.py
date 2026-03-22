@@ -12,6 +12,7 @@ Required .env:
 
 import logging
 import re
+import asyncio
 from datetime import datetime
 from typing import Optional
 
@@ -378,7 +379,7 @@ class NLPService:
             ctx = format_search_context(results, query)
             context_blocks.append(ctx)
 
-        memory_block = get_memory_service().as_prompt_block()
+        memory_block = get_memory_service().format_for_prompt()
         system = f"[Today's date is {datetime.now().strftime('%B %d, %Y')}.]"
         if memory_block:
             system += "\n" + memory_block
@@ -386,7 +387,8 @@ class NLPService:
             system += "\n" + "\n\n".join(context_blocks)
         system += "\n\n" + SYSTEM_PROMPT
 
-        get_memory_service().auto_extract(query)
+        # Async extraction (Mark-style)
+        asyncio.create_task(get_memory_service().extract_memory_async(query))
 
         self._conversation_history.append({"role": "user", "content": query})
         history = self._conversation_history[-10:]

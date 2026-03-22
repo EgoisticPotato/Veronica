@@ -70,19 +70,16 @@ function SpotifyPlayer({
   return (
     <div className="sp-root">
 
-      <div className="sp-art-wrap">
-        {albumArt && (
-          <>
-            <div className="sp-art-blur" style={{ backgroundImage: `url(${albumArt})` }} />
+      <div className="sp-track-row">
+        <div className="sp-art-wrap">
+          {albumArt && (
             <img src={albumArt} alt={trackName} className="sp-art" />
-          </>
-        )}
-      </div>
-
-      <div className="sp-meta">
-        <div className="sp-track">{trackName}</div>
-        <div className="sp-artist">{artistName}</div>
-        {albumName && <div className="sp-album">{albumName}</div>}
+          )}
+        </div>
+        <div className="sp-meta">
+          <div className="sp-track">{trackName}</div>
+          <div className="sp-artist">{artistName}</div>
+        </div>
       </div>
 
       <div className="sp-progress-wrap">
