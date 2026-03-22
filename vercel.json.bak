@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "rewrites": [
-    {
-      "source": "/api/v1/(.*)",
-      "destination": "https://veronica-latest-backend.onrender.com/api/v1/$1"
-    }
-  ]
-}
