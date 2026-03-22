@@ -93,11 +93,14 @@ async def spotify_login():
 @router.get("/auth/callback")
 async def spotify_callback(request: Request,
                             code: str = None, state: str = None, error: str = None):
-    if error:                       return RedirectResponse("/?auth_error=denied",         status_code=302)
-    if not code or not state:       return RedirectResponse("/?auth_error=missing_params",  status_code=302)
+    frontend_url = "https://veronica-drab.vercel.app"
+    if error:                       return RedirectResponse(f"{frontend_url}/?auth_error=denied",         status_code=302)
+    if not code or not state:       return RedirectResponse(f"{frontend_url}/?auth_error=missing_params",  status_code=302)
     try:    await exchange_code_for_tokens(code, state)
-    except ValueError:              return RedirectResponse("/?auth_error=csrf",             status_code=302)
-    except Exception:               return RedirectResponse("/?auth_error=token_exchange",   status_code=302)
+    except ValueError:              return RedirectResponse(f"{frontend_url}/?auth_error=csrf",             status_code=302)
+    except Exception:               return RedirectResponse(f"{frontend_url}/?auth_error=token_exchange",   status_code=302)
+    
+    return RedirectResponse(frontend_url, status_code=302)
     return RedirectResponse("/", status_code=302)
 
 @router.get("/auth/token")
