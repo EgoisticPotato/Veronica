@@ -93,15 +93,41 @@ class MemoryService:
         if not updates: return
         if self._recursive_update(self._memory, updates):
             self._save()
+            self.update_persistent_markdown_memory(updates)
             logger.info("Memory updated: %s", list(updates.keys()))
+
+    def update_persistent_markdown_memory(self, updates: dict) -> None:
+        """Append new facts to the human-readable Memory.md file."""
+        if not settings.PERSISTENT_MEMORY_FILE:
+            return
+
+        path = Path(settings.PERSISTENT_MEMORY_FILE)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # If file doesn't exist, add a header
+            if not path.exists():
+                path.write_text("# Veronica — Persistent Memory\n\n", encoding="utf-8")
+
+            with path.open("a", encoding="utf-8") as f:
+                f.write(f"## {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                for cat, val in updates.items():
+                    if isinstance(val, dict):
+                        for k, v in val.items():
+                            extracted_val = v.get("value") if isinstance(v, dict) else v
+                            if extracted_val:
+                                f.write(f"- **{cat}/{k}**: {extracted_val}\n")
+                    else:
+                        f.write(f"- **{cat}**: {val}\n")
+                f.write("\n")
+        except Exception as e:
+            logger.error("Failed to update Memory.md: %s", e)
 
     async def extract_memory_async(self, user_text: str, assistant_text: str = "") -> None:
         """
         Two-stage LLM extraction (Mark-style).
         Filtered by a quick check to save tokens.
         """
-        if not settings.GEMINI_API_KEY: return
-        
         text = user_text.strip()
         if len(text) < 8: return
 
@@ -118,28 +144,36 @@ class MemoryService:
             logger.warning("Auto-extraction failed: %s", e)
 
     async def _llm_check_relevance(self, text: str) -> bool:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}"
-        payload = {
-            "contents": [{
-                "parts": [{
-                    "text": (
-                        "Does this message contain personal facts about the user "
-                        "(name, age, city, job, hobby, relationship, birthday, preference)? "
-                        f"Reply only YES or NO.\n\nMessage: {text[:300]}"
-                    )
-                }]
-            }]
-        }
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(url, json=payload)
-            if r.status_code == 200:
-                res = r.json()
-                txt = res["candidates"][0]["content"]["parts"][0]["text"].upper()
-                return "YES" in txt
+        prompt = (
+            "Does this message contain personal facts about the user "
+            "(name, age, city, job, hobby, relationship, birthday, preference)? "
+            f"Reply only YES or NO.\n\nMessage: {text[:300]}"
+        )
+        
+        if settings.GEMINI_API_KEY:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}"
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}]
+            }
+            async with httpx.AsyncClient(timeout=10) as client:
+                r = await client.post(url, json=payload)
+                if r.status_code == 200:
+                    res = r.json()
+                    txt = res["candidates"][0]["content"]["parts"][0]["text"].upper()
+                    return "YES" in txt
+        else:
+            # Fallback to Ollama
+            async with httpx.AsyncClient(timeout=30) as client:
+                r = await client.post(
+                    f"{settings.OLLAMA_BASE_URL}/api/generate",
+                    json={"model": settings.OLLAMA_MODEL, "prompt": prompt, "stream": False}
+                )
+                if r.status_code == 200:
+                    txt = r.json().get("response", "").upper()
+                    return "YES" in txt
         return False
 
     async def _llm_extract_json(self, text: str) -> dict:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}"
         prompt = (
             "Extract personal facts from this message. Return ONLY valid JSON or {} if nothing found.\n"
             "Categories: identity (name, age, birthday, city), preferences (hobbies, music, food), relationships, notes (job, other).\n"
@@ -147,18 +181,36 @@ class MemoryService:
             '{"identity":{"name":{"value":"..."}}, "preferences":{"hobby":{"value":"..."}}, "notes":{"job":{"value":"..."}}}\n\n'
             f"Message: {text[:500]}\n\nJSON:"
         )
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"response_mime_type": "application/json"}
-        }
-        async with httpx.AsyncClient(timeout=20) as client:
-            r = await client.post(url, json=payload)
-            if r.status_code == 200:
-                res = r.json()
-                raw = res["candidates"][0]["content"]["parts"][0]["text"].strip()
-                # Handle potential markdown fencing
-                raw = re.sub(r"```(?:json)?", "", raw).strip().rstrip("`").strip()
-                return json.loads(raw)
+
+        if settings.GEMINI_API_KEY:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}"
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"response_mime_type": "application/json"}
+            }
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.post(url, json=payload)
+                if r.status_code == 200:
+                    res = r.json()
+                    raw = res["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    # Handle potential markdown fencing
+                    raw = re.sub(r"```(?:json)?", "", raw).strip().rstrip("`").strip()
+                    return json.loads(raw)
+        else:
+            # Fallback to Ollama
+            async with httpx.AsyncClient(timeout=60) as client:
+                r = await client.post(
+                    f"{settings.OLLAMA_BASE_URL}/api/generate",
+                    json={
+                        "model": settings.OLLAMA_MODEL, 
+                        "prompt": prompt, 
+                        "stream": False,
+                        "format": "json"
+                    }
+                )
+                if r.status_code == 200:
+                    raw = r.json().get("response", "").strip()
+                    return json.loads(raw)
         return {}
 
     def get_all(self) -> list[dict]:

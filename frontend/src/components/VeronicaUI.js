@@ -132,6 +132,72 @@ function VeronicaUI({ token }) {
       const nlpResult = await voiceService.query(text, Array.from(activeDocIds));
       setResponse(nlpResult.response);
 
+      // ── Agent intent — multi-step autonomous execution ──────────────
+      if (nlpResult.is_agent) {
+        setStatusText('planning...');
+        setResponse('Let me work on that for you.');
+
+        try {
+          let finalSummary = '';
+          await voiceService.runAgent(text, (event) => {
+            switch (event.type) {
+              case 'plan':
+                setStatusText(`planned ${event.steps?.length || 0} steps`);
+                break;
+              case 'step':
+                setStatusText(`step ${event.step}: ${event.description || event.tool}...`);
+                break;
+              case 'result':
+                if (event.status === 'done') {
+                  setStatusText(`step ${event.step} done ✓`);
+                }
+                break;
+              case 'replan':
+                setStatusText(`replanning (attempt ${event.attempt})...`);
+                break;
+              case 'done':
+                finalSummary = event.summary || 'All done.';
+                setResponse(finalSummary);
+                setStatusText('done');
+                break;
+              case 'direct':
+                // Planner said this is a simple question — fall through
+                finalSummary = '__DIRECT__';
+                break;
+              case 'error':
+                setResponse(event.message || 'Agent task failed.');
+                setStatusText('error');
+                break;
+              default:
+                break;
+            }
+          });
+
+          // If planner classified as direct, handle as normal query
+          if (finalSummary === '__DIRECT__') {
+            const directResult = await voiceService.query(text, Array.from(activeDocIds));
+            // Override is_agent to skip re-detection
+            setResponse(directResult.response);
+            if (wasPlayingRef.current) {
+              await voiceService.controlMusic('pause').catch(() => { });
+            }
+            await speakText(directResult.response);
+          } else if (finalSummary && finalSummary !== '__DIRECT__') {
+            // Speak the final summary
+            if (wasPlayingRef.current) {
+              await voiceService.controlMusic('pause').catch(() => { });
+            }
+            await speakText(finalSummary);
+          }
+        } catch (agentErr) {
+          console.error('Agent pipeline:', agentErr);
+          setStatusText('agent error');
+          setResponse('Something went wrong with the agent pipeline.');
+          resetToIdle(2500);
+        }
+        return;
+      }
+
       if (nlpResult.is_music) {
         const action = nlpResult.music_action;
 

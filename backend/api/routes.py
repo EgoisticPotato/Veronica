@@ -11,9 +11,10 @@ Convert:    /convert/*    (file format conversion)
 Misc:       /health  /voice/history
 """
 
+import json
 import logging
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
-from fastapi.responses import RedirectResponse, JSONResponse, Response
+from fastapi.responses import RedirectResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional
 
@@ -81,6 +82,20 @@ class MemoryRequest(BaseModel):
 class ScreenshotRequest(BaseModel):
     image_b64: str = Field(..., min_length=10)
     question:  str = Field(default="What do you see in this screenshot?", max_length=500)
+
+class AgentRequest(BaseModel):
+    goal: str = Field(..., min_length=1, max_length=2000)
+
+class VisionRequest(BaseModel):
+    question: str = Field(default="What is on my screen?", max_length=500)
+
+class FileReadRequest(BaseModel):
+    path: str = Field(..., min_length=1, max_length=500)
+
+class FileWriteRequest(BaseModel):
+    path:    str = Field(..., min_length=1, max_length=500)
+    content: str = Field(..., min_length=1)
+    name:    str = Field(default="", max_length=200)
 
 
 # ─── Spotify Auth ──────────────────────────────────────────────────────────────
@@ -425,11 +440,97 @@ async def get_lyrics(track: str, artist: str = ""):
         logger.error("Lyrics: %s", e)
         raise HTTPException(500, "Could not fetch lyrics")
 
+# ─── Agent (Agentic Pipeline) ──────────────────────────────────────────────────
+
+@router.post("/voice/agent")
+async def run_agent(body: AgentRequest):
+    """
+    Execute a multi-step agent plan for the given goal.
+    Returns an SSE stream of JSON events:
+      {"type": "plan",   "steps": [...]}
+      {"type": "step",   "step": N, "tool": "...", "status": "running"}
+      {"type": "result", "step": N, "output": "...", "status": "done"}
+      {"type": "done",   "summary": "..."}
+      {"type": "error",  "message": "..."}
+    """
+    if not settings.AGENT_ENABLED:
+        raise HTTPException(403, "Agent features are disabled.")
+
+    from services.agent.executor import execute_plan
+
+    async def event_stream():
+        try:
+            async for event in execute_plan(body.goal):
+                # If planner says it's a direct response, fall through to normal NLP
+                if event.get("type") == "direct":
+                    yield f"data: {json.dumps(event)}\n\n"
+                    return
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as e:
+            logger.error("Agent stream error: %s", e)
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# ─── Vision (Screen Analysis) ──────────────────────────────────────────────────
+
+@router.post("/voice/vision")
+async def vision_analyze(body: VisionRequest):
+    """Capture the screen and analyze it with Ollama vision."""
+    from services.vision_service import analyze_screen
+    try:
+        description = await analyze_screen(body.question)
+        return JSONResponse({"description": description})
+    except Exception as e:
+        logger.error("Vision: %s", e)
+        raise HTTPException(500, f"Vision analysis failed: {str(e)}")
+
+
+# ─── File System (Agent Tools) ─────────────────────────────────────────────────
+
+@router.get("/agent/files")
+async def list_agent_files(path: str = "Desktop"):
+    """List files in a sandboxed directory."""
+    from services.agent.tools import tool_file_list
+    result = await tool_file_list({"path": path})
+    if result.startswith("Error:"):
+        raise HTTPException(400, result)
+    return JSONResponse({"listing": result})
+
+@router.post("/agent/files/read")
+async def read_agent_file(body: FileReadRequest):
+    """Read a file from a sandboxed directory."""
+    from services.agent.tools import tool_file_read
+    result = await tool_file_read({"path": body.path})
+    if result.startswith("Error:"):
+        raise HTTPException(400, result)
+    return JSONResponse({"content": result})
+
+@router.post("/agent/files/write")
+async def write_agent_file(body: FileWriteRequest):
+    """Write a file to a sandboxed directory."""
+    from services.agent.tools import tool_file_write
+    result = await tool_file_write({"path": body.path, "content": body.content, "name": body.name})
+    if result.startswith("Error:"):
+        raise HTTPException(400, result)
+    return JSONResponse({"result": result})
+
+
 @router.get("/health")
 async def health():
     return JSONResponse({
         "status":    "ok",
         "service":   "Veronica",
         "docs":      len(list_documents()),
-        "llm":       settings.OPENROUTER_MODEL,
+        "llm":       settings.OLLAMA_MODEL,
+        "agent":     settings.AGENT_ENABLED,
     })

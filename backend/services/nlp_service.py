@@ -13,6 +13,7 @@ Required .env:
 import logging
 import re
 import asyncio
+from pathlib import Path
 from datetime import datetime
 from typing import Optional
 
@@ -56,6 +57,26 @@ _MUSIC_QUEUE_KW  = ["add to queue","add to my queue","queue up","queue this",
 _MUSIC_PLAY_KW   = ["play","music","song","track","album","artist","spotify","listen","put on"]
 
 _MUSIC_STOP_KW_EXACT   = {"stop", "silence"}
+
+# ── Agent intent keywords (multi-step / system actions) ────────────────────
+_AGENT_MULTI_STEP_KW = [
+    "and then", "after that", "first", "then",
+    "step by step", "steps", "plan",
+]
+_AGENT_ACTION_KW = [
+    "organize", "research and save", "find all files", "find files",
+    "list files", "list the files", "list my files",
+    "read the file", "read file", "open the file", "open file",
+    "write a file", "write file", "create a file", "create file", "save to file",
+    "save to desktop", "save to documents", "save to downloads",
+    "what's on my screen", "what is on my screen", "look at my screen",
+    "see my screen", "analyze my screen", "analyze screen", "screen",
+    "run the command", "run command", "execute", "run this",
+    "open app", "open application", "launch",
+    "what files", "show my files", "show files",
+    "search and save", "search for", "look up",
+    "download", "delete the file", "delete file",
+]
 _MUSIC_PAUSE_KW_EXACT  = {"pause", "wait"}
 _MUSIC_RESUME_KW_EXACT = {"resume", "unpause"}
 _MUSIC_NEXT_KW_EXACT   = {"next", "skip", "forward"}
@@ -296,12 +317,25 @@ class NLPService:
     async def process_query(self, query: str, doc_context: str = "") -> dict:
         if not query.strip():
             return {"response": "I didn't catch that. Could you repeat?",
-                    "is_music": False, "music_query": None, "music_action": None}
+                    "is_music": False, "music_query": None, "music_action": None,
+                    "is_agent": False}
 
         if not self.client.is_configured():
             return {
                 "response": "AI not configured. Set GEMINI_API_KEY (cloud) or start Ollama (local).",
                 "is_music": False, "music_query": None, "music_action": None,
+                "is_agent": False,
+            }
+
+        # Agent intent detection — runs BEFORE music to catch multi-step requests
+        if settings.AGENT_ENABLED and self._detect_agent_intent(query):
+            logger.info("Agent intent detected: '%s'", query[:60])
+            return {
+                "response": "Let me work on that for you.",
+                "is_music": False,
+                "music_query": None,
+                "music_action": None,
+                "is_agent": True,
             }
 
         intent = self._detect_music_intent(query)
@@ -311,11 +345,12 @@ class NLPService:
                 "is_music":     True,
                 "music_query":  intent.search_query or None,
                 "music_action": intent.action,
+                "is_agent":     False,
             }
 
         response_text = await self._handle_general_query(query, doc_context)
         return {"response": response_text, "is_music": False,
-                "music_query": None, "music_action": None}
+                "music_query": None, "music_action": None, "is_agent": False}
 
     def _music_confirmation(self, intent: MusicIntent) -> str:
         return {
@@ -327,6 +362,23 @@ class NLPService:
             "next":     "Skipping to the next track.",
             "previous": "Going back to the previous track.",
         }.get(intent.action, "Done.")
+
+    def _detect_agent_intent(self, query: str) -> bool:
+        """Detect if a query should be handled by the agent pipeline."""
+        q = query.lower().strip()
+
+        # Direct action keywords — always trigger agent
+        if any(k in q for k in _AGENT_ACTION_KW):
+            return True
+
+        # Multi-step signals — trigger only if combined with action words
+        has_multi = any(k in q for k in _AGENT_MULTI_STEP_KW)
+        has_verb = any(w in q for w in ["search", "find", "get", "save", "write", "read",
+                                          "open", "run", "show", "list", "check", "look"])
+        if has_multi and has_verb:
+            return True
+
+        return False
 
     def _detect_music_intent(self, query: str) -> MusicIntent:
         """Pure keyword + regex — zero LLM calls for music commands."""
@@ -380,9 +432,25 @@ class NLPService:
             context_blocks.append(ctx)
 
         memory_block = get_memory_service().format_for_prompt()
+        
+        # ── Persistent Memory (Markdown) ──
+        persistent_memory = ""
+        if settings.PERSISTENT_MEMORY_FILE:
+            mem_path = Path(settings.PERSISTENT_MEMORY_FILE)
+            if mem_path.exists():
+                try:
+                    persistent_memory = mem_path.read_text(encoding="utf-8")
+                    # Limit to last 2000 chars to avoid context blowup
+                    if len(persistent_memory) > 2000:
+                        persistent_memory = "..." + persistent_memory[-2000:]
+                except Exception as e:
+                    logger.error("Read Memory.md error: %s", e)
+
         system = f"[Today's date is {datetime.now().strftime('%B %d, %Y')}.]"
         if memory_block:
             system += "\n" + memory_block
+        if persistent_memory:
+            system += "\n\n[PERSISTENT MEMORY FROM FILE]\n" + persistent_memory
         if context_blocks:
             system += "\n" + "\n\n".join(context_blocks)
         system += "\n\n" + SYSTEM_PROMPT
@@ -396,6 +464,20 @@ class NLPService:
         try:
             answer = await self.client.chat(messages=history, system=system, max_tokens=300)
             self._conversation_history.append({"role": "assistant", "content": answer})
+            
+            # ── Persistent Chat History (Markdown) ──
+            if settings.CHAT_HISTORY_FILE:
+                chat_path = Path(settings.CHAT_HISTORY_FILE)
+                try:
+                    chat_path.parent.mkdir(parents=True, exist_ok=True)
+                    if not chat_path.exists():
+                        chat_path.write_text("# Veronica — Chat History\n\n", encoding="utf-8")
+                    with chat_path.open("a", encoding="utf-8") as f:
+                        ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        f.write(f"### {ts}\n**User**: {query}\n**Veronica**: {answer}\n\n")
+                except Exception as e:
+                    logger.error("Write ChatHistory.md error: %s", e)
+
             logger.info("LLM response: '%s'", answer[:80])
             return answer
         except Exception as e:

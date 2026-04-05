@@ -85,6 +85,15 @@ class Settings(BaseSettings):
     # ── File upload ────────────────────────────────────────────────────────
     MAX_UPLOAD_MB: int = 50
 
+    # ── Persistence ────────────────────────────────────────────────────────
+    PERSISTENT_MEMORY_FILE: str = "C:\\Mehul\\ALLmyCODINGstuff\\mem\\EgoVault\\Veronica\\Memory.md"
+    CHAT_HISTORY_FILE:      str = "C:\\Mehul\\ALLmyCODINGstuff\\mem\\EgoVault\\Veronica\\ChatHistory.md"
+
+    # ── Agent ──────────────────────────────────────────────────────────────
+    AGENT_ENABLED:       bool       = True          # master switch for agent features
+    AGENT_ENABLE_CMD:    bool       = False         # enable cmd_run tool (shell exec)
+    AGENT_ALLOWED_PATHS: str        = "Desktop,Documents,Downloads,C:\\Mehul\\ALLmyCODINGstuff\\mem\\EgoVault"  # comma-separated
+    AGENT_MAX_STEPS:     int        = 5             # max steps per plan
 
     # ── Deployment ──────────────────────────────────────────────────────────
     ALLOWED_HOST: str = ""   # optional custom domain for TrustedHostMiddleware

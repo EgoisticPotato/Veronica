@@ -48,3 +48,6 @@ docx2pdf==0.1.8              # DOCX → PDF via Word (Windows/macOS)
 
 # Utilities
 python-dotenv==1.0.1
+
+# Screen capture (Agent vision)
+mss==9.0.2

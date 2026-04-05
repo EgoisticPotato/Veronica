@@ -307,6 +307,77 @@ class VoiceService {
 
     return stop;
   }
+
+  /**
+   * Run the agentic pipeline — POST goal, read SSE stream.
+   * @param {string} goal — natural language goal
+   * @param {function} onEvent — called for each SSE event: { type, ... }
+   * @returns {Promise<void>} resolves when stream is done
+   */
+  async runAgent(goal, onEvent) {
+    const res = await fetch('/api/v1/voice/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal }),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.detail || `Agent ${res.status}`);
+    }
+
+    // Read SSE stream via ReadableStream (EventSource can't POST)
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse SSE lines: "data: {...}\n\n"
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const event = JSON.parse(trimmed.slice(6));
+            onEvent?.(event);
+          } catch (e) {
+            console.warn('[Agent] Could not parse SSE:', trimmed);
+          }
+        }
+      }
+    }
+
+    // Process remaining buffer
+    if (buffer.trim().startsWith('data: ')) {
+      try {
+        const event = JSON.parse(buffer.trim().slice(6));
+        onEvent?.(event);
+      } catch (_) {}
+    }
+  }
+
+  /**
+   * Analyze current screen via server-side capture (mss + Ollama vision).
+   * @param {string} question — what to ask about the screen
+   * @returns {Promise<string>} description
+   */
+  async analyzeScreen(question = 'What is on my screen?') {
+    const res = await fetch('/api/v1/voice/vision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question }),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.detail || `Vision ${res.status}`);
+    }
+    return (await res.json()).description;
+  }
 }
 
 export const voiceService = new VoiceService();
